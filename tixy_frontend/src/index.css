@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Jost:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans bg-surface text-ink text-sm leading-relaxed;
+  }
+}
+
+@layer components {
+  .input-base {
+    @apply w-full px-3 py-2 border border-line rounded-lg bg-white font-sans text-sm text-ink
+           outline-none transition-all duration-150
+           focus:border-pink-mid focus:ring-2 focus:ring-pink/10
+           placeholder:text-ink-3;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
+           bg-gradient-to-br from-pink to-pink-dark text-white border border-pink-dark
+           transition-all duration-150 hover:from-pink-dark hover:to-pink-deep
+           active:scale-95 cursor-pointer;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
+           bg-white text-ink-2 border border-line
+           transition-all duration-150 hover:bg-surface
+           active:scale-95 cursor-pointer;
+  }
+  .card {
+    @apply bg-white border border-line rounded-xl p-6 shadow-sm;
+  }
+}

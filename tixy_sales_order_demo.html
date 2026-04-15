@@ -1,0 +1,353 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:transparent;color:var(--color-text-primary)}
+.app{max-width:900px;margin:0 auto;padding:1rem}
+.nav{display:flex;gap:8px;margin-bottom:1.5rem;border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:12px}
+.nav-btn{padding:6px 16px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-sans)}
+.nav-btn.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:1rem}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:1rem}
+.metric-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:500}
+.metric-val.green{color:#1D9E75}
+label{font-size:13px;color:var(--color-text-secondary);display:block;margin-bottom:4px;margin-top:10px}
+input,select{width:100%;padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:14px}
+.btn{padding:8px 18px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);cursor:pointer;font-size:13px;font-family:var(--font-sans)}
+.btn-primary{background:#1D9E75;border-color:#1D9E75;color:#fff}
+.btn-danger{color:#E24B4A;border-color:#E24B4A}
+.btn-sm{padding:4px 10px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:500;font-size:12px;color:var(--color-text-secondary);padding:6px 8px;border-bottom:0.5px solid var(--color-border-tertiary)}
+td{padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary)}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--border-radius-md);font-size:11px}
+.badge-teal{background:#E1F5EE;color:#0F6E56}
+.badge-amber{background:#FAEEDA;color:#854F0B}
+.badge-blue{background:#E6F1FB;color:#185FA5}
+.row-actions{display:flex;gap:6px}
+.order-line{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+.total-row{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.total-label{font-size:14px;color:var(--color-text-secondary)}
+.total-amount{font-size:20px;font-weight:500;color:#1D9E75}
+.section-title{font-size:15px;font-weight:500;margin-bottom:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:12px;margin:3px}
+.empty{color:var(--color-text-tertiary);font-size:13px;padding:1rem;text-align:center}
+.tag-cat{font-size:11px;padding:2px 6px;border-radius:4px}
+.flex-end{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.success-banner{background:#E1F5EE;border:0.5px solid #5DCAA5;border-radius:var(--border-radius-md);padding:10px 14px;color:#0F6E56;font-size:13px;margin-bottom:12px;display:none}
+.search-bar{position:relative;margin-bottom:12px}
+.search-bar input{padding-left:32px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-tertiary);font-size:14px}
+.dropdown-res{position:absolute;top:100%;left:0;right:0;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);z-index:10;max-height:200px;overflow-y:auto;display:none}
+.dropdown-res.show{display:block}
+.dropdown-item{padding:8px 12px;cursor:pointer;font-size:13px}
+.dropdown-item:hover{background:var(--color-background-secondary)}
+.vendor-header{display:flex;align-items:center;gap:12px;margin-bottom:1rem}
+.vendor-avatar{width:38px;height:38px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px;color:#0F6E56}
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-bar select{width:auto;font-size:13px}
+</style>
+
+<div class="app">
+<h2 class="sr-only">Sistema de pedidos TIXY / MAGOTEX — demo interactivo</h2>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <div style="font-size:18px;font-weight:500">MAGOTEX SAS</div>
+    <div style="font-size:12px;color:var(--color-text-secondary)">Sistema de pedidos — demo</div>
+  </div>
+  <div style="font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:4px 10px;border-radius:var(--border-radius-md)">v0.1 demo</div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPanel('admin')">Administración</button>
+  <button class="nav-btn" onclick="showPanel('vendor')">Vendedor</button>
+  <button class="nav-btn" onclick="showPanel('manager')">Gerencia</button>
+</div>
+
+<div id="panel-admin" class="panel active">
+  <div class="success-banner" id="admin-success">Referencia guardada correctamente.</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="section-title">Nueva referencia</div>
+      <label>Código de referencia</label>
+      <input id="ref-code" placeholder="ej. 3366" />
+      <label>Descripción</label>
+      <input id="ref-desc" placeholder="ej. Vestido corto manga corta" />
+      <label>Categoría</label>
+      <select id="ref-cat">
+        <option>Vestido corto</option>
+        <option>Vestido largo</option>
+        <option>Conjunto</option>
+        <option>Blusa</option>
+        <option>Body</option>
+        <option>Camiseta</option>
+        <option>Chaleco</option>
+      </select>
+      <label>Precio base (COP)</label>
+      <input id="ref-price" type="number" placeholder="22000" />
+      <div class="flex-end" style="margin-top:14px">
+        <button class="btn btn-primary" onclick="addRef()">Guardar referencia</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Referencias registradas</div>
+      <div id="ref-table-wrap">
+        <table>
+          <thead><tr><th>Ref</th><th>Descripción</th><th>Cat.</th><th>Precio</th><th></th></tr></thead>
+          <tbody id="ref-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-vendor" class="panel">
+  <div class="success-banner" id="vendor-success">Pedido enviado correctamente.</div>
+  <div class="card">
+    <div class="vendor-header">
+      <div class="vendor-avatar">JR</div>
+      <div>
+        <div style="font-weight:500;font-size:14px">Jhon Restrepo</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Vendedor — La Dorada, Caldas</div>
+      </div>
+    </div>
+    <label>Ciudad destino del cliente</label>
+    <select id="v-city">
+      <option>La Dorada</option><option>Bogotá</option><option>Medellín</option><option>Cali</option><option>Barranquilla</option><option>Pereira</option><option>Manizales</option><option>Bucaramanga</option>
+    </select>
+    <label>Cliente / almacén</label>
+    <input id="v-client" placeholder="ej. Moda Dorada" />
+  </div>
+  <div class="card">
+    <div class="section-title">Agregar línea al pedido</div>
+    <div class="search-bar" style="position:relative">
+      <span class="search-icon">⌕</span>
+      <input id="v-search" placeholder="Buscar por código o descripción..." oninput="searchRefs()" autocomplete="off" />
+      <div class="dropdown-res" id="v-dropdown"></div>
+    </div>
+    <div id="order-lines"></div>
+    <div id="order-total" style="display:none" class="total-row">
+      <span class="total-label">Total pedido</span>
+      <span class="total-amount" id="total-display">$0</span>
+    </div>
+    <div class="flex-end">
+      <button class="btn" onclick="clearOrder()">Limpiar</button>
+      <button class="btn btn-primary" onclick="submitOrder()">Enviar pedido ↗</button>
+    </div>
+  </div>
+</div>
+
+<div id="panel-manager" class="panel">
+  <div class="grid4">
+    <div class="metric"><div class="metric-label">Pedidos hoy</div><div class="metric-val" id="m-orders">0</div></div>
+    <div class="metric"><div class="metric-label">Unidades vendidas</div><div class="metric-val" id="m-units">0</div></div>
+    <div class="metric"><div class="metric-label">Vendedores activos</div><div class="metric-val">3</div></div>
+    <div class="metric"><div class="metric-label">Total ventas</div><div class="metric-val green" id="m-total">$0</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin:0">Pedidos registrados</div>
+      <div class="filter-bar" style="margin:0">
+        <select id="filter-city" onchange="renderOrders()" style="width:130px">
+          <option value="">Todas las ciudades</option>
+          <option>La Dorada</option><option>Bogotá</option><option>Medellín</option><option>Cali</option><option>Barranquilla</option>
+        </select>
+        <select id="filter-cat" onchange="renderOrders()" style="width:140px">
+          <option value="">Todas las categorías</option>
+          <option>Vestido corto</option><option>Vestido largo</option><option>Conjunto</option><option>Blusa</option><option>Body</option>
+        </select>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Vendedor</th><th>Cliente</th><th>Ciudad</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead>
+      <tbody id="orders-tbody"><tr><td colspan="7" class="empty">Aún no hay pedidos. El vendedor debe enviar el primero.</td></tr></tbody>
+    </table>
+  </div>
+  <div class="card" style="margin-top:0">
+    <div class="section-title">Top referencias</div>
+    <div id="top-refs"><div class="empty">Sin datos aún.</div></div>
+  </div>
+</div>
+</div>
+
+<script>
+let refs=[
+  {code:'3366',desc:'Vestido C manga corta',cat:'Vestido corto',price:22000},
+  {code:'3372',desc:'Vestido C tiras',cat:'Vestido corto',price:22000},
+  {code:'3450',desc:'Vestido C asimétrico',cat:'Vestido corto',price:24000},
+  {code:'3465',desc:'Vestido L raya',cat:'Vestido largo',price:27000},
+  {code:'3202',desc:'Vestido L manga sisa',cat:'Vestido largo',price:27000},
+  {code:'13326',desc:'Vestido L tiras',cat:'Vestido largo',price:27000},
+  {code:'3384',desc:'Blusa manga corta',cat:'Blusa',price:15000},
+  {code:'3383',desc:'Blusa manga sisa',cat:'Blusa',price:15000},
+  {code:'3427',desc:'Blusa manga sisa asimétrica',cat:'Blusa',price:18000},
+  {code:'3289',desc:'Body tiras',cat:'Body',price:16000},
+  {code:'33191',desc:'Blusa PCS',cat:'Blusa',price:16000},
+  {code:'3428',desc:'Chaleco corto',cat:'Chaleco',price:15000},
+];
+let orders=[];
+let orderLines=[];
+
+const catColors={'Vestido corto':'badge-teal','Vestido largo':'badge-blue','Conjunto':'badge-amber','Blusa':'badge-teal','Body':'badge-blue','Camiseta':'badge-amber','Chaleco':'badge-amber'};
+
+function showPanel(p){
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('panel-'+p).classList.add('active');
+  event.target.classList.add('active');
+  if(p==='manager')renderOrders();
+}
+
+function renderRefs(){
+  const tb=document.getElementById('ref-tbody');
+  if(!refs.length){tb.innerHTML='<tr><td colspan="5" class="empty">Sin referencias.</td></tr>';return;}
+  tb.innerHTML=refs.map((r,i)=>`<tr>
+    <td><strong>${r.code}</strong></td>
+    <td style="font-size:12px">${r.desc}</td>
+    <td><span class="badge ${catColors[r.cat]||'badge-teal'}" style="font-size:10px">${r.cat}</span></td>
+    <td>$${r.price.toLocaleString('es-CO')}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteRef(${i})">×</button></td>
+  </tr>`).join('');
+}
+
+function addRef(){
+  const code=document.getElementById('ref-code').value.trim();
+  const desc=document.getElementById('ref-desc').value.trim();
+  const cat=document.getElementById('ref-cat').value;
+  const price=parseInt(document.getElementById('ref-price').value)||0;
+  if(!code||!desc||!price)return;
+  refs.push({code,desc,cat,price});
+  renderRefs();
+  ['ref-code','ref-desc','ref-price'].forEach(id=>document.getElementById(id).value='');
+  const b=document.getElementById('admin-success');
+  b.style.display='block';setTimeout(()=>b.style.display='none',2500);
+}
+
+function deleteRef(i){refs.splice(i,1);renderRefs();}
+
+function searchRefs(){
+  const q=document.getElementById('v-search').value.toLowerCase();
+  const dd=document.getElementById('v-dropdown');
+  if(!q){dd.classList.remove('show');return;}
+  const matches=refs.filter(r=>r.code.includes(q)||r.desc.toLowerCase().includes(q));
+  if(!matches.length){dd.classList.remove('show');return;}
+  dd.innerHTML=matches.map(r=>`<div class="dropdown-item" onclick="selectRef('${r.code}')">
+    <strong>${r.code}</strong> — ${r.desc} <span style="color:var(--color-text-secondary)">$${r.price.toLocaleString('es-CO')}</span>
+  </div>`).join('');
+  dd.classList.add('show');
+}
+
+function selectRef(code){
+  const r=refs.find(x=>x.code===code);
+  if(!r)return;
+  if(orderLines.find(l=>l.code===code)){alert('Ya está en el pedido.');return;}
+  orderLines.push({...r,qty:12});
+  document.getElementById('v-search').value='';
+  document.getElementById('v-dropdown').classList.remove('show');
+  renderLines();
+}
+
+function renderLines(){
+  const el=document.getElementById('order-lines');
+  if(!orderLines.length){el.innerHTML='<div class="empty">Busca y agrega referencias arriba.</div>';document.getElementById('order-total').style.display='none';return;}
+  el.innerHTML=orderLines.map((l,i)=>`
+    <div class="order-line">
+      <div>
+        <div style="font-size:13px;font-weight:500">${l.code} — ${l.desc}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${l.cat} · $${l.price.toLocaleString('es-CO')} c/u</div>
+      </div>
+      <div>
+        <label style="margin:0;font-size:11px">Cant.</label>
+        <input type="number" min="1" value="${l.qty}" style="width:70px;padding:4px 6px" oninput="updateQty(${i},this.value)" />
+      </div>
+      <div>
+        <label style="margin:0;font-size:11px">Valor unit.</label>
+        <input type="number" value="${l.price}" style="width:90px;padding:4px 6px" oninput="updatePrice(${i},this.value)" />
+      </div>
+      <div>
+        <label style="margin:0;font-size:11px">Subtotal</label>
+        <div style="font-size:13px;font-weight:500;padding-top:6px">$${(l.qty*l.price).toLocaleString('es-CO')}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="margin-top:14px" onclick="removeLine(${i})">×</button>
+    </div>
+  `).join('');
+  const total=orderLines.reduce((s,l)=>s+l.qty*l.price,0);
+  document.getElementById('total-display').textContent='$'+total.toLocaleString('es-CO');
+  document.getElementById('order-total').style.display='flex';
+}
+
+function updateQty(i,v){orderLines[i].qty=parseInt(v)||0;renderLines();}
+function updatePrice(i,v){orderLines[i].price=parseInt(v)||0;renderLines();}
+function removeLine(i){orderLines.splice(i,1);renderLines();}
+function clearOrder(){orderLines=[];renderLines();}
+
+function submitOrder(){
+  if(!orderLines.length){alert('Agrega al menos una referencia.');return;}
+  const city=document.getElementById('v-city').value;
+  const client=document.getElementById('v-client').value||'Sin nombre';
+  const total=orderLines.reduce((s,l)=>s+l.qty*l.price,0);
+  const units=orderLines.reduce((s,l)=>s+l.qty,0);
+  orders.push({
+    id:orders.length+1,
+    vendor:'Jhon Restrepo',
+    client,city,
+    lines:[...orderLines],
+    total,units,
+    date:new Date().toLocaleDateString('es-CO'),
+    status:'Enviado'
+  });
+  orderLines=[];renderLines();
+  document.getElementById('v-client').value='';
+  const b=document.getElementById('vendor-success');
+  b.style.display='block';setTimeout(()=>b.style.display='none',2500);
+}
+
+function renderOrders(){
+  const cityF=document.getElementById('filter-city').value;
+  const catF=document.getElementById('filter-cat').value;
+  let filtered=orders;
+  if(cityF)filtered=filtered.filter(o=>o.city===cityF);
+  if(catF)filtered=filtered.filter(o=>o.lines.some(l=>l.cat===catF));
+
+  document.getElementById('m-orders').textContent=orders.length;
+  document.getElementById('m-units').textContent=orders.reduce((s,o)=>s+o.units,0);
+  document.getElementById('m-total').textContent='$'+orders.reduce((s,o)=>s+o.total,0).toLocaleString('es-CO');
+
+  const tb=document.getElementById('orders-tbody');
+  if(!filtered.length){tb.innerHTML='<tr><td colspan="7" class="empty">No hay pedidos con esos filtros.</td></tr>';return;}
+  tb.innerHTML=filtered.map(o=>`<tr>
+    <td>#${o.id}</td>
+    <td style="font-size:12px">${o.vendor}</td>
+    <td style="font-size:12px">${o.client}</td>
+    <td><span class="badge badge-blue">${o.city}</span></td>
+    <td style="font-size:12px">${o.lines.length} refs · ${o.units} uds</td>
+    <td style="font-weight:500">$${o.total.toLocaleString('es-CO')}</td>
+    <td><span class="badge badge-teal">${o.status}</span></td>
+  </tr>`).join('');
+
+  const refCounts={};
+  orders.forEach(o=>o.lines.forEach(l=>{
+    refCounts[l.code]=(refCounts[l.code]||{desc:l.desc,units:0,total:0});
+    refCounts[l.code].units+=l.qty;
+    refCounts[l.code].total+=l.qty*l.price;
+  }));
+  const top=Object.entries(refCounts).sort((a,b)=>b[1].units-a[1].units).slice(0,5);
+  const tr=document.getElementById('top-refs');
+  if(!top.length){tr.innerHTML='<div class="empty">Sin datos aún.</div>';return;}
+  tr.innerHTML=top.map(([code,d])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <div><span style="font-weight:500;font-size:13px">${code}</span> <span style="font-size:12px;color:var(--color-text-secondary)">${d.desc}</span></div>
+      <div style="text-align:right"><div style="font-size:13px;font-weight:500">$${d.total.toLocaleString('es-CO')}</div><div style="font-size:11px;color:var(--color-text-secondary)">${d.units} uds</div></div>
+    </div>`).join('');
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-bar'))document.getElementById('v-dropdown').classList.remove('show');
+});
+
+renderRefs();renderLines();
+</script>

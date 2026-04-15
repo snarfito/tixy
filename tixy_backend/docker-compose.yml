@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: mysql:8.0
+    container_name: tixy_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: tixy
+      MYSQL_USER: tixy
+      MYSQL_PASSWORD: tixy_pass
+    ports:
+      - "3307:3306"        # 3307 en el host para no chocar con MySQL local
+    volumes:
+      - tixy_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-utixy", "-ptixy_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tixy_backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app   # hot-reload en desarrollo
+
+volumes:
+  tixy_db_data:
