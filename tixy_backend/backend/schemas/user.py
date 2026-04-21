@@ -33,6 +33,11 @@ class UserOut(BaseModel):
     is_active:    bool
 
 
+class PasswordReset(BaseModel):
+    """Payload para que un Admin asigne una contraseña temporal a un usuario."""
+    new_password: str
+
+
 class TokenOut(BaseModel):
     access_token: str
     token_type:   str = "bearer"

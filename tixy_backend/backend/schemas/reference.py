@@ -29,3 +29,20 @@ class ReferenceOut(BaseModel):
     base_price:    float
     is_active:     bool
     collection_id: int
+
+
+# ── Bulk update ──────────────────────────────────────────────────────────────
+
+class ReferenceBulkUpdate(BaseModel):
+    """Payload para actualización/copia masiva de referencias."""
+    ids:                    list[int]
+    is_active:              Optional[bool]          = None
+    base_price:             Optional[float]         = None
+    category:               Optional[ProductCategory] = None
+    copy_to_collection_id:  Optional[int]           = None   # si viene, copia en vez de editar
+
+
+class ReferenceBulkResult(BaseModel):
+    updated: int
+    copied:  int
+    errors:  list[str] = []

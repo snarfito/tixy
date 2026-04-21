@@ -452,7 +452,7 @@ export default function VendorPage() {
           {lastOrderId && (
             <button onClick={handleDownload} disabled={downloading}
               className="btn-secondary disabled:opacity-50">
-              {downloading ? 'Generando…' : '↓ Descargar PDF'}
+              {downloading ? 'Generando…' : '📄 Ver PDF'}
             </button>
           )}
           <button onClick={handleClear} className="btn-secondary">Limpiar pedido</button>

@@ -16,6 +16,15 @@ export const updateReference = (id, payload) =>
 export const deleteReference = (id) =>
   api.delete(`/references/${id}`)
 
+/**
+ * Actualización / copia masiva de referencias.
+ * @param {{ ids: number[], is_active?: boolean, base_price?: number,
+ *           category?: string, copy_to_collection_id?: number }} payload
+ * @returns {{ updated: number, copied: number, errors: string[] }}
+ */
+export const bulkUpdateReferences = (payload) =>
+  api.patch('/references/bulk', payload).then(r => r.data)
+
 // Colecciones
 export const getCollections = (activeOnly = false) =>
   api.get('/collections/', { params: { active_only: activeOnly } }).then(r => r.data)
@@ -39,5 +48,25 @@ export const getUsers = () =>
 export const createUser = (payload) =>
   api.post('/users/', payload).then(r => r.data)
 
+export const resetUserPassword = (id, newPassword) =>
+  api.patch(`/users/${id}/reset-password`, { new_password: newPassword }).then(r => r.data)
+
 export const updateUser = (id, payload) =>
   api.patch(`/users/${id}`, payload).then(r => r.data)
+
+// Clientes
+export const listClients = (search = '') =>
+  api.get('/clients/', { params: search ? { search } : {} }).then(r => r.data)
+
+export const createClient = (payload) =>
+  api.post('/clients/', payload).then(r => r.data)
+
+export const updateClient = (id, payload) =>
+  api.patch(`/clients/${id}`, payload).then(r => r.data)
+
+// Almacenes
+export const addStore = (clientId, payload) =>
+  api.post(`/clients/${clientId}/stores`, payload).then(r => r.data)
+
+export const updateStore = (storeId, payload) =>
+  api.patch(`/clients/stores/${storeId}`, payload).then(r => r.data)

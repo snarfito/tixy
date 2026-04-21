@@ -17,13 +17,16 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+from models.client import Store
+
+
 def _load_order(db: Session, order_id: int) -> Order:
     order = (
         db.query(Order)
         .options(
             joinedload(Order.lines).joinedload(OrderLine.reference),
             joinedload(Order.vendor),
-            joinedload(Order.store),
+            joinedload(Order.store).joinedload(Store.client),
         )
         .filter(Order.id == order_id)
         .first()
@@ -49,7 +52,11 @@ def list_orders(
     db:  Session = Depends(get_db),
     me:  User    = Depends(get_current_user),
 ):
-    q = db.query(Order).options(joinedload(Order.vendor), joinedload(Order.store))
+    q = db.query(Order).options(
+        joinedload(Order.vendor),
+        joinedload(Order.store),
+        joinedload(Order.lines),
+    )
 
     # vendedor solo ve sus propios pedidos
     if me.role == UserRole.VENDOR:
@@ -206,6 +213,83 @@ def sales_by_reference(
             "total_value": float(r.total_value),
         }
         for r in rows
+    ]
+
+
+@router.get("/summary/by-collection", tags=["reports"])
+def sales_by_collection(
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_manager),
+):
+    """
+    Métricas consolidadas por colección para el panel de comparativas.
+    Retorna, por cada colección que tenga al menos un pedido no cancelado:
+      - total de pedidos, unidades vendidas, valor total
+      - desglose de unidades por categoría de prenda
+      - nombre y año/temporada de la colección
+    """
+    from models.collection import Collection
+    from models.reference import Reference
+
+    # ── Totales por colección ────────────────────────────────────────────────
+    totals_q = (
+        db.query(
+            Collection.id,
+            Collection.name,
+            Collection.year,
+            Collection.season,
+            func.count(Order.id.distinct()).label("order_count"),
+            func.sum(OrderLine.quantity).label("total_units"),
+            func.sum(OrderLine.quantity * OrderLine.unit_price).label("total_value"),
+        )
+        .join(Order, Order.collection_id == Collection.id)
+        .join(OrderLine, OrderLine.order_id == Order.id)
+        .filter(Order.status != OrderStatus.CANCELLED)
+        .group_by(Collection.id)
+        .order_by(Collection.year.desc(), Collection.season.desc())
+        .all()
+    )
+
+    # ── Desglose por categoría (todas las colecciones de una vez) ────────────
+    cat_q = (
+        db.query(
+            Order.collection_id,
+            Reference.category,
+            func.sum(OrderLine.quantity).label("units"),
+            func.sum(OrderLine.quantity * OrderLine.unit_price).label("value"),
+        )
+        .join(OrderLine, OrderLine.order_id == Order.id)
+        .join(Reference, Reference.id == OrderLine.reference_id)
+        .filter(Order.status != OrderStatus.CANCELLED)
+        .group_by(Order.collection_id, Reference.category)
+        .all()
+    )
+
+    # Indexar por collection_id
+    cat_by_col: dict[int, list] = {}
+    for row in cat_q:
+        cat_by_col.setdefault(row.collection_id, []).append({
+            "category":    row.category.value if hasattr(row.category, "value") else str(row.category),
+            "total_units": int(row.units),
+            "total_value": float(row.value),
+        })
+
+    return [
+        {
+            "collection_id":   r.id,
+            "collection_name": r.name,
+            "year":            r.year,
+            "season":          r.season,
+            "order_count":     int(r.order_count),
+            "total_units":     int(r.total_units),
+            "total_value":     float(r.total_value),
+            "by_category":     sorted(
+                cat_by_col.get(r.id, []),
+                key=lambda x: x["total_units"],
+                reverse=True,
+            ),
+        }
+        for r in totals_q
     ]
 
 

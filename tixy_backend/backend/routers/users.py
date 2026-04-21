@@ -5,7 +5,7 @@ from core.database import get_db
 from core.deps import require_admin
 from core.security import hash_password
 from models.user import User
-from schemas.user import UserCreate, UserOut, UserUpdate
+from schemas.user import UserCreate, UserOut, UserUpdate, PasswordReset
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -35,6 +35,25 @@ def create_user(
         contact_info=payload.contact_info,
     )
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.patch("/{user_id}/reset-password", response_model=UserOut)
+def reset_user_password(
+    user_id: int,
+    payload: PasswordReset,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Permite a un Admin asignar una contraseña temporal a cualquier usuario."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
+    user.hashed_pw = hash_password(payload.new_password)
     db.commit()
     db.refresh(user)
     return user

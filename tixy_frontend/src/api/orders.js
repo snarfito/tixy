@@ -27,11 +27,8 @@ export const downloadPdfVendor = async (orderId) => {
   if (!res.ok) throw new Error('Error generando PDF')
   const blob = await res.blob()
   const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = `tixy-orden-${orderId}-sin-total.pdf`
-  a.click()
-  URL.revokeObjectURL(url)
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
 export const listOrders = (params) =>

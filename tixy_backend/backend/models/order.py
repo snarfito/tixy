@@ -37,6 +37,10 @@ class Order(Base):
     lines:      Mapped[list["OrderLine"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
     @property
+    def units(self) -> int:
+        return sum(ln.quantity for ln in self.lines)
+
+    @property
     def subtotal(self) -> float:
         return sum(ln.unit_price * ln.quantity for ln in self.lines)
 

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from models.order import OrderStatus
 from schemas.reference import ReferenceOut
 from schemas.user import UserOut
+from schemas.client import StoreOut, StoreWithClientOut
 
 
 class OrderLineCreate(BaseModel):
@@ -46,6 +47,7 @@ class OrderOut(BaseModel):
     total:        float
     lines:        list[OrderLineOut] = []
     vendor:       UserOut
+    store:        Optional[StoreWithClientOut] = None
 
 
 class OrderSummary(BaseModel):
@@ -58,5 +60,7 @@ class OrderSummary(BaseModel):
     created_at:   datetime
     vendor:       UserOut
     store_id:     int
+    store:        StoreOut
+    units:        int
     subtotal:     float
     total:        float

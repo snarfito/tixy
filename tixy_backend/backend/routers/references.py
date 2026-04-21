@@ -7,7 +7,13 @@ from core.database import get_db
 from core.deps import require_admin, require_vendor
 from models.reference import Reference
 from models.user import User
-from schemas.reference import ReferenceCreate, ReferenceOut, ReferenceUpdate
+from schemas.reference import (
+    ReferenceCreate,
+    ReferenceOut,
+    ReferenceUpdate,
+    ReferenceBulkUpdate,
+    ReferenceBulkResult,
+)
 
 router = APIRouter(prefix="/references", tags=["references"])
 
@@ -82,6 +88,68 @@ def copy_references(
     for r in created:
         db.refresh(r)
     return created
+
+
+@router.patch("/bulk", response_model=ReferenceBulkResult)
+def bulk_update_references(
+    payload: ReferenceBulkUpdate,
+    db:      Session = Depends(get_db),
+    _:       User    = Depends(require_admin),
+):
+    """Actualización / copia masiva de referencias por lista de IDs.
+
+    - Si se envían campos (is_active, base_price, category) → se actualizan in-place.
+    - Si se envía copy_to_collection_id → se copian a esa colección (omite códigos duplicados).
+    - Ambas operaciones pueden combinarse en la misma llamada.
+    """
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="Se requiere al menos un ID")
+
+    refs = db.query(Reference).filter(Reference.id.in_(payload.ids)).all()
+    if not refs:
+        raise HTTPException(status_code=404, detail="No se encontraron referencias con esos IDs")
+
+    # Campos a actualizar in-place (excluimos ids y copy_to_collection_id)
+    update_fields = payload.model_dump(
+        exclude_none=True,
+        exclude={"ids", "copy_to_collection_id"},
+    )
+
+    updated_count = 0
+    copied_count  = 0
+    errors: list[str] = []
+
+    # ── Actualización in-place ───────────────────────────────────────────────
+    if update_fields:
+        for ref in refs:
+            for field, value in update_fields.items():
+                setattr(ref, field, value)
+        updated_count = len(refs)
+
+    # ── Copia a otra colección ───────────────────────────────────────────────
+    if payload.copy_to_collection_id is not None:
+        existing_codes = {
+            r.code for r in
+            db.query(Reference.code)
+            .filter(Reference.collection_id == payload.copy_to_collection_id)
+            .all()
+        }
+        for src in refs:
+            if src.code in existing_codes:
+                errors.append(f"Código '{src.code}' ya existe en la colección destino — omitido")
+                continue
+            new_ref = Reference(
+                code=src.code,
+                description=src.description,
+                category=src.category,
+                base_price=src.base_price,
+                collection_id=payload.copy_to_collection_id,
+            )
+            db.add(new_ref)
+            copied_count += 1
+
+    db.commit()
+    return ReferenceBulkResult(updated=updated_count, copied=copied_count, errors=errors)
 
 
 @router.get("/{ref_id}", response_model=ReferenceOut)

@@ -11,6 +11,29 @@ class StoreCreate(BaseModel):
     contact: Optional[str] = None
 
 
+class ClientBasic(BaseModel):
+    """Vista mínima de cliente para incluir dentro del store en OrderOut."""
+    model_config = {"from_attributes": True}
+
+    id:            int
+    business_name: str
+    nit:           Optional[str]
+
+
+class StoreWithClientOut(BaseModel):
+    """Store con el cliente incluido, para usar en detalle de órdenes."""
+    model_config = {"from_attributes": True}
+
+    id:        int
+    name:      str
+    address:   Optional[str]
+    city:      Optional[str]
+    phone:     Optional[str]
+    contact:   Optional[str]
+    client_id: int
+    client:    Optional[ClientBasic] = None
+
+
 class StoreOut(BaseModel):
     model_config = {"from_attributes": True}
 
