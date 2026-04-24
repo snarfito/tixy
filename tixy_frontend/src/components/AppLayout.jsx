@@ -36,7 +36,7 @@ export default function AppLayout() {
         <div className="flex items-center gap-3.5">
           {/* Logo oficial Tixy Glamour */}
           <img
-            src="/logo-blanco.png"
+            src="/logo-pink.png"
             alt="Tixy Glamour"
             className="h-8 sm:h-9 w-auto object-contain"
           />

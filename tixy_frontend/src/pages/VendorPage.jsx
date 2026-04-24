@@ -372,24 +372,16 @@ export default function VendorPage() {
           {/* Header — igual que el formulario */}
           <div className="px-4 sm:px-6 py-4 flex items-center justify-between
                           bg-gradient-to-r from-[#1a0d14] via-[#2e0d1e] to-[#1a0d14]">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <span className="font-script text-4xl sm:text-5xl leading-none"
-                style={{
-                  background: 'linear-gradient(135deg,#f5c0d8 0%,#e8a0c0 30%,#d4608c 60%,#c9907a 100%)',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.5))',
-                }}>Tixy</span>
-              <div className="border-l border-pink/30 pl-3 sm:pl-4">
-                <span className="text-[9px] tracking-[3px] sm:tracking-[5px] text-white/40 uppercase font-light block">es moda · Glamour</span>
+            <div className="flex items-center gap-3">
+              <img src="/logo-pink.png" alt="Tixy Glamour"
+                className="h-8 sm:h-10 w-auto object-contain" />
+              <div className="border-l border-pink/30 pl-3">
+                <span className="text-[10px] tracking-[1.5px] text-white/50 uppercase font-light">Sistema de Pedidos</span>
               </div>
             </div>
             <div className="text-right">
               <div className="text-[10px] tracking-[2px] sm:tracking-[3px] uppercase text-white/40 font-light">Orden de Pedido</div>
-              <div className="font-mono text-2xl sm:text-3xl font-medium tracking-widest"
-                style={{
-                  background: 'linear-gradient(135deg,#f5c0d8,#c9907a)',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                }}>
+              <div className="font-mono text-2xl sm:text-3xl font-medium tracking-widest text-pink-mid">
                 #{successOrder.order_number}
               </div>
             </div>
@@ -503,29 +495,20 @@ export default function VendorPage() {
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between
                         bg-gradient-to-r from-[#1a0d14] via-[#2e0d1e] to-[#1a0d14]">
-          <div className="flex items-center gap-4">
-            <span className="font-script text-5xl leading-none"
-              style={{
-                background: 'linear-gradient(135deg,#f5c0d8 0%,#e8a0c0 30%,#d4608c 60%,#c9907a 100%)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.5))',
-              }}>Tixy</span>
-            <div className="border-l border-pink/30 pl-4 flex flex-col gap-0.5">
-              <span className="text-[9px] tracking-[5px] text-white/40 uppercase font-light">es moda · Glamour</span>
-              <span className="text-[10px] text-white/40 font-light leading-tight">
-                Transversal 49c #59 62 · 4to piso<br />
-                Centro Mundial De La Moda<br />
+          <div className="flex items-center gap-3">
+            <img src="/logo-pink.png" alt="Tixy Glamour"
+              className="h-9 w-auto object-contain" />
+            <div className="border-l border-pink/30 pl-3.5 flex flex-col gap-0.5">
+              <span className="text-[10px] tracking-[1.5px] text-white/50 uppercase font-light">Sistema de Pedidos</span>
+              <span className="text-[9px] text-white/30 font-light leading-tight">
+                Transversal 49c #59-62 · 4to piso · Centro Mundial De La Moda<br />
                 319 680 0557 · 313 623 1499
               </span>
             </div>
           </div>
           <div className="text-right">
             <div className="text-[10px] tracking-[3px] uppercase text-white/40 font-light">Orden de Pedido</div>
-            <div className="font-mono text-3xl font-medium tracking-widest"
-              style={{
-                background: 'linear-gradient(135deg,#f5c0d8,#c9907a)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              }}>
+            <div className="font-mono text-3xl font-medium tracking-widest text-pink-mid">
               #{editingOrder ? editingOrder.order_number : orderNum}
             </div>
           </div>

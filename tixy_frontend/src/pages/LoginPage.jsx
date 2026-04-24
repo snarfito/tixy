@@ -12,9 +12,9 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false)
 
   // Estado del flujo "Olvidé mi contraseña"
-  const [showForgot,   setShowForgot]   = useState(false)
-  const [forgotEmail,  setForgotEmail]  = useState('')
-  const [forgotSent,   setForgotSent]   = useState(false)
+  const [showForgot,    setShowForgot]    = useState(false)
+  const [forgotEmail,   setForgotEmail]   = useState('')
+  const [forgotSent,    setForgotSent]    = useState(false)
   const [forgotLoading, setForgotLoading] = useState(false)
 
   async function handleSubmit(e) {
@@ -23,19 +23,12 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const { access_token, user } = await login(email, password)
-
-      // Guardar en localStorage PRIMERO, antes de cualquier navegación
       localStorage.setItem('tixy_token', access_token)
       localStorage.setItem('tixy_user', JSON.stringify(user))
-
-      // Luego actualizar el store
       setAuth(access_token, user)
-
-      // Navegar después de que todo esté guardado
       if (user.role === 'vendor')       navigate('/pedido')
       else if (user.role === 'manager') navigate('/gerencia')
       else                              navigate('/admin')
-
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al iniciar sesión')
     } finally {
@@ -43,31 +36,34 @@ export default function LoginPage() {
     }
   }
 
-  // Simula solicitud de reset (en producción: llamar al backend y enviar email)
   async function handleForgotPassword(e) {
     e.preventDefault()
     setForgotLoading(true)
-    // TODO: reemplazar con llamada real a POST /auth/forgot-password
     console.log(`[Tixy] Solicitud de reset de contraseña para: ${forgotEmail}`)
-    await new Promise(r => setTimeout(r, 800))  // simula latencia
+    await new Promise(r => setTimeout(r, 800))
     setForgotLoading(false)
     setForgotSent(true)
   }
 
-  // Vista de "Olvidé mi contraseña"
+  // ── Logo compartido ──────────────────────────────────────────────────────
+  const LogoBlock = () => (
+    <div className="mb-8 text-center">
+      <img
+        src="/logo-pink.png"
+        alt="Tixy Glamour"
+        className="h-16 w-auto mx-auto object-contain"
+      />
+      <div className="mt-3 text-xs tracking-[5px] uppercase text-white/30 font-light">
+        Sistema de Pedidos
+      </div>
+    </div>
+  )
+
+  // ── Vista: Olvidé mi contraseña ──────────────────────────────────────────
   if (showForgot) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#1a0d14] via-[#2e0d1e] to-[#1a0d14]">
-        <div className="mb-8 text-center">
-          <img
-            src="/logo-blanco.png"
-            alt="Tixy Glamour"
-            className="h-16 w-auto mx-auto object-contain"
-          />
-          <div className="mt-3 text-xs tracking-[5px] uppercase text-white/30 font-light">
-            Sistema de Pedidos
-          </div>
-        </div>
+        <LogoBlock />
 
         <div className="w-full max-w-sm mx-4 bg-white/[0.06] backdrop-blur border border-pink/20 rounded-2xl p-8 shadow-2xl">
           {forgotSent ? (
@@ -78,7 +74,8 @@ export default function LoginPage() {
                 Si el correo <span className="text-pink-mid font-medium">{forgotEmail}</span> está
                 registrado, el administrador recibirá la solicitud y te asignará una contraseña temporal.
               </p>
-              <button onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail('') }}
+              <button
+                onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail('') }}
                 className="w-full py-2.5 rounded-lg text-sm font-semibold text-white
                            bg-gradient-to-br from-pink to-pink-dark border border-pink-dark
                            hover:from-pink-dark hover:to-pink-deep transition-all tracking-wide">
@@ -133,18 +130,10 @@ export default function LoginPage() {
     )
   }
 
+  // ── Vista: Login ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#1a0d14] via-[#2e0d1e] to-[#1a0d14]">
-      <div className="mb-8 text-center">
-        <img
-          src="/logo-blanco.png"
-          alt="Tixy Glamour"
-          className="h-16 w-auto mx-auto object-contain"
-        />
-        <div className="mt-3 text-xs tracking-[5px] uppercase text-white/30 font-light">
-          Sistema de Pedidos
-        </div>
-      </div>
+      <LogoBlock />
 
       <div className="w-full max-w-sm mx-4 bg-white/[0.06] backdrop-blur border border-pink/20 rounded-2xl p-8 shadow-2xl">
         <h2 className="text-base font-semibold text-white/80 mb-6 text-center tracking-wide">
