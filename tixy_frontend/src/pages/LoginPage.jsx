@@ -77,7 +77,7 @@ export default function LoginPage() {
               <h2 className="text-base font-semibold text-white/80 mb-3">Solicitud enviada</h2>
               <p className="text-sm text-white/50 mb-6">
                 Si el correo <span className="text-pink-mid font-medium">{forgotEmail}</span> está
-                registrado, el administrador recibirá la solicitud y te asignará una contraseña temporal.
+                registrado, recibirás un enlace en los próximos minutos.
               </p>
               <button
                 onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail('') }}
