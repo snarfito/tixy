@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tixy Glamour</title>
-  <meta name="description" content="Tixy Glamour — Moda con identidad propia." />
+  <meta name="description" content="Tixy Glamour — Moda, Glamour y Amor Propio." />
   <meta property="og:title" content="Tixy Glamour" />
-  <meta property="og:description" content="Moda con identidad propia." />
+  <meta property="og:description" content="Moda, Glamour y Amor Propio." />
   <meta property="og:url" content="https://tixyglamour.com" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Great+Vibes&family=Montserrat:wght@200;300;400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@200;300;400;600&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,26 +21,24 @@
       --pink-lite: #FAE0EE;
       --dark:      #1A0D14;
       --dark2:     #2e0d1e;
-      --gold:      #c9907a;
     }
 
     html, body {
       height: 100%;
       overflow: hidden;
       background: var(--dark);
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'Sora', sans-serif;
       color: #fff;
       cursor: default;
     }
 
-    /* ── Canvas fondo ── */
     canvas {
       position: fixed;
       inset: 0;
       z-index: 0;
     }
 
-    /* ── Grain overlay ── */
+    /* Grain overlay */
     .grain {
       position: fixed;
       inset: -200%;
@@ -65,7 +63,7 @@
       90%{transform:translate(-2%,4%)}
     }
 
-    /* ── Contenedor principal ── */
+    /* Contenedor principal */
     .stage {
       position: fixed;
       inset: 0;
@@ -74,95 +72,83 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0;
     }
 
-    /* ── Línea decorativa top ── */
+    /* Línea decorativa superior */
     .deco-line {
       width: 1px;
-      height: 80px;
+      height: 70px;
       background: linear-gradient(to bottom, transparent, rgba(192,32,106,.5));
       margin-bottom: 2.5rem;
       opacity: 0;
       animation: fadeSlideDown .8s ease .3s forwards;
     }
 
-    /* ── Logo ── */
+    /* Logo */
     .logo-wrap {
       text-align: center;
       opacity: 0;
       animation: fadeSlideDown .9s ease .55s forwards;
     }
 
-    .logo-script {
-      font-family: 'Great Vibes', cursive;
-      font-size: clamp(5rem, 15vw, 10rem);
-      line-height: 1;
-      background: linear-gradient(135deg,
-        #f5c0d8 0%,
-        #e8a0c0 25%,
-        #d4608c 55%,
-        #c9907a 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      filter: drop-shadow(0 4px 24px rgba(192,32,106,.35));
-      letter-spacing: .02em;
+    .logo-img {
+      height: clamp(52px, 10vw, 88px);
+      width: auto;
+      filter: drop-shadow(0 4px 24px rgba(192,32,106,.4));
     }
 
     .logo-sub {
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'Sora', sans-serif;
       font-weight: 200;
-      font-size: clamp(.55rem, 1.4vw, .75rem);
-      letter-spacing: .5em;
+      font-size: clamp(.5rem, 1.2vw, .68rem);
+      letter-spacing: .45em;
       text-transform: uppercase;
-      color: rgba(255,255,255,.28);
-      margin-top: .6rem;
+      color: rgba(255,255,255,.25);
+      margin-top: .7rem;
     }
 
-    /* ── Divisor ── */
+    /* Divisor con estrella ✦ de marca */
     .divider {
       display: flex;
       align-items: center;
       gap: 1rem;
-      margin: 2.8rem 0;
+      margin: 2.6rem 0;
       opacity: 0;
       animation: fadeSlideDown .8s ease .85s forwards;
     }
     .divider::before,
     .divider::after {
       content: '';
-      width: 60px;
+      width: 56px;
       height: 1px;
       background: linear-gradient(to right, transparent, rgba(192,32,106,.45));
     }
     .divider::after {
       background: linear-gradient(to left, transparent, rgba(192,32,106,.45));
     }
-    .divider-diamond {
-      width: 5px;
-      height: 5px;
-      background: var(--pink);
-      transform: rotate(45deg);
-      opacity: .7;
+    .divider-star {
+      color: var(--pink);
+      font-size: .85rem;
+      opacity: .75;
+      line-height: 1;
     }
 
-    /* ── Tagline ── */
+    /* Tagline */
     .tagline {
-      font-family: 'Cormorant Garamond', serif;
-      font-style: italic;
+      font-family: 'Sora', sans-serif;
       font-weight: 300;
-      font-size: clamp(1rem, 2.5vw, 1.4rem);
-      color: rgba(255,255,255,.45);
-      letter-spacing: .08em;
+      font-style: italic;
+      font-size: clamp(.85rem, 2vw, 1.15rem);
+      color: rgba(255,255,255,.42);
+      letter-spacing: .1em;
       text-align: center;
       opacity: 0;
       animation: fadeSlideDown .8s ease 1.05s forwards;
     }
 
-    /* ── Botón CTA ── */
+    /* Botón CTA */
     .cta-wrap {
-      margin-top: 3.2rem;
+      margin-top: 3rem;
       opacity: 0;
       animation: fadeSlideDown .8s ease 1.3s forwards;
     }
@@ -176,13 +162,12 @@
       border: 1px solid rgba(192,32,106,.4);
       background: rgba(192,32,106,.08);
       color: rgba(255,255,255,.85);
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'Sora', sans-serif;
       font-weight: 300;
-      font-size: .75rem;
+      font-size: .7rem;
       letter-spacing: .35em;
       text-transform: uppercase;
       text-decoration: none;
-      border-radius: 0;
       transition: all .4s ease;
       overflow: hidden;
       backdrop-filter: blur(6px);
@@ -192,7 +177,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(192,32,106,.2), rgba(201,144,122,.1));
+      background: linear-gradient(135deg, rgba(192,32,106,.22), rgba(192,32,106,.06));
       transform: translateX(-100%);
       transition: transform .4s ease;
     }
@@ -202,24 +187,24 @@
     .btn-cta:hover {
       border-color: rgba(192,32,106,.8);
       color: #fff;
-      box-shadow: 0 0 30px rgba(192,32,106,.2), inset 0 0 20px rgba(192,32,106,.05);
+      box-shadow: 0 0 28px rgba(192,32,106,.2), inset 0 0 18px rgba(192,32,106,.05);
       gap: 1rem;
     }
 
     .btn-arrow {
-      font-size: .9rem;
+      font-size: .85rem;
       transition: transform .3s ease;
     }
     .btn-cta:hover .btn-arrow { transform: translateX(3px); }
 
-    /* ── Footer ── */
+    /* Footer */
     .footer {
       position: fixed;
-      bottom: 2rem;
+      bottom: 1.8rem;
       left: 50%;
       transform: translateX(-50%);
       z-index: 2;
-      font-size: .6rem;
+      font-size: .58rem;
       letter-spacing: .4em;
       text-transform: uppercase;
       color: rgba(255,255,255,.12);
@@ -228,16 +213,13 @@
       white-space: nowrap;
     }
 
-    /* ── Animaciones ── */
     @keyframes fadeSlideDown {
-      from { opacity: 0; transform: translateY(-18px); }
+      from { opacity: 0; transform: translateY(-16px); }
       to   { opacity: 1; transform: translateY(0); }
     }
     @keyframes fadeIn {
       to { opacity: 1; }
     }
-
-    /* ── Partículas flotantes (generadas por JS en el canvas) ── */
   </style>
 </head>
 <body>
@@ -249,15 +231,18 @@
     <div class="deco-line"></div>
 
     <div class="logo-wrap">
-      <div class="logo-script">Tixy</div>
-      <div class="logo-sub">Glamour</div>
+      <!-- Logo oficial servido desde el CDN de la app en Vercel -->
+      <img class="logo-img"
+           src="https://app.tixyglamour.com/logo-blanco.png"
+           alt="Tixy Glamour" />
+      <div class="logo-sub">Sistema de Pedidos</div>
     </div>
 
     <div class="divider">
-      <div class="divider-diamond"></div>
+      <div class="divider-star">✦</div>
     </div>
 
-    <p class="tagline">Moda con identidad propia</p>
+    <p class="tagline">Moda, Glamour y Amor Propio</p>
 
     <div class="cta-wrap">
       <a href="https://app.tixyglamour.com" class="btn-cta">
@@ -267,10 +252,10 @@
     </div>
   </main>
 
-  <p class="footer">Tixy Glamour &nbsp;·&nbsp; Colombia &nbsp;·&nbsp; 2026</p>
+  <p class="footer">Tixy Glamour &nbsp;✦&nbsp; Colombia &nbsp;✦&nbsp; 2026</p>
 
   <script>
-    // ── Fondo animado: partículas + mesh gradient ──────────────────────────
+    // Fondo animado: partículas + orbs de luz
     const canvas = document.getElementById('bg');
     const ctx    = canvas.getContext('2d');
     let W, H, particles = [], mouse = { x: 0, y: 0 };
@@ -283,24 +268,22 @@
     window.addEventListener('resize', () => { resize(); initParticles(); });
     window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
-    // Partículas
     class Particle {
       constructor() { this.reset(true); }
       reset(init = false) {
-        this.x  = Math.random() * W;
-        this.y  = init ? Math.random() * H : H + 10;
-        this.r  = Math.random() * 1.5 + .3;
-        this.vx = (Math.random() - .5) * .15;
-        this.vy = -(Math.random() * .4 + .1);
-        this.alpha = Math.random() * .35 + .05;
-        this.life  = 0;
+        this.x       = Math.random() * W;
+        this.y       = init ? Math.random() * H : H + 10;
+        this.r       = Math.random() * 1.5 + .3;
+        this.vx      = (Math.random() - .5) * .15;
+        this.vy      = -(Math.random() * .4 + .1);
+        this.alpha   = Math.random() * .35 + .05;
+        this.life    = 0;
         this.maxLife = Math.random() * 300 + 200;
       }
       update() {
         this.x += this.vx;
         this.y += this.vy;
         this.life++;
-        // Leve atracción al mouse
         const dx = mouse.x - this.x, dy = mouse.y - this.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist < 200) {
@@ -325,24 +308,20 @@
     }
     initParticles();
 
-    // Orbs de luz animados
     const orbs = [
-      { x: .2, y: .3, r: .45, color: [192, 32, 106],  speed: .0004, offset: 0 },
-      { x: .8, y: .7, r: .5,  color: [46,  13, 30],   speed: .0003, offset: 1 },
-      { x: .5, y: .15,r: .35, color: [201,144,122],   speed: .0005, offset: 2 },
-      { x: .1, y: .8, r: .4,  color: [140, 20, 70],   speed: .00035,offset: 3 },
-      { x: .9, y: .2, r: .38, color: [80,  10, 40],   speed: .00045,offset: 4 },
+      { x: .2,  y: .3,  r: .45, color: [192, 32, 106], speed: .0004,  offset: 0 },
+      { x: .8,  y: .7,  r: .5,  color: [46,  13,  30], speed: .0003,  offset: 1 },
+      { x: .5,  y: .15, r: .35, color: [192, 80, 130], speed: .0005,  offset: 2 },
+      { x: .1,  y: .8,  r: .4,  color: [140, 20,  70], speed: .00035, offset: 3 },
+      { x: .9,  y: .2,  r: .38, color: [80,  10,  40], speed: .00045, offset: 4 },
     ];
 
     let t = 0;
     function draw() {
       ctx.clearRect(0, 0, W, H);
-
-      // Fondo base
       ctx.fillStyle = '#1a0d14';
       ctx.fillRect(0, 0, W, H);
 
-      // Orbs suaves — movimiento muy lento, casi imperceptible
       orbs.forEach(o => {
         const cx = (o.x + Math.sin(t * o.speed + o.offset) * .08) * W;
         const cy = (o.y + Math.cos(t * o.speed + o.offset) * .06) * H;
@@ -356,10 +335,9 @@
         ctx.fillRect(0, 0, W, H);
       });
 
-      // Partículas
       particles.forEach(p => { p.update(); p.draw(); });
 
-      // Vignette
+      // Viñeta
       const vig = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2,Math.max(W,H)*.7);
       vig.addColorStop(0,   'rgba(0,0,0,0)');
       vig.addColorStop(.7,  'rgba(0,0,0,.15)');
