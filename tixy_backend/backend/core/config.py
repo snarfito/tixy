@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     # Ejemplo: "https://tixyglamour.com,https://app.tixyglamour.com"
     ALLOWED_ORIGINS: str = "*"
 
+    # Email (Resend) — configura en Railway
+    RESEND_API_KEY: str = "re_CONFIGURA_EN_RAILWAY"
+    MAIL_FROM: str = "noreply@tixyglamour.com"
+    MAIL_FROM_NAME: str = "Tixy Glamour"
+
+    # URL del frontend — para generar el link de reset
+    FRONTEND_URL: str = "https://app.tixyglamour.com"
+
     @property
     def database_url(self) -> str:
         return (

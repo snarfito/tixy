@@ -7,6 +7,7 @@ from slowapi.util import get_remote_address
 
 from core.config import settings
 from core.database import Base, engine
+from models import password_reset  # noqa: F401 — necesario para que create_all cree la tabla
 from routers import auth, users, collections, references, clients, orders, pdf
 
 # Crea tablas si no existen (en producción usarás Alembic)

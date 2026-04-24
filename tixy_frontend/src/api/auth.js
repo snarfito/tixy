@@ -18,3 +18,20 @@ export async function getMe() {
   const { data } = await api.get('/auth/me')
   return data
 }
+
+/**
+ * Solicita el envío del correo de recuperación de contraseña.
+ * El backend siempre responde 200 (no revela si el email existe).
+ */
+export async function forgotPassword(email) {
+  const { data } = await api.post('/auth/forgot-password', { email })
+  return data   // { message }
+}
+
+/**
+ * Cambia la contraseña usando el token recibido por correo.
+ */
+export async function resetPassword(token, new_password) {
+  const { data } = await api.post('/auth/reset-password', { token, new_password })
+  return data   // { message }
+}

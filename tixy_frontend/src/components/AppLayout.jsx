@@ -9,6 +9,7 @@ const NAV = {
   ],
   manager: [
     { to: '/gerencia', label: 'Gerencia', icon: '📊' },
+    { to: '/pedido',   label: 'Orden de Pedido', icon: '📋' },
   ],
   vendor:  [
     { to: '/pedido', label: 'Orden de Pedido', icon: '📋' },

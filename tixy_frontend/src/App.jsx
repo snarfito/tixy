@@ -1,17 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import LoginPage      from './pages/LoginPage'
-import AdminPage      from './pages/AdminPage'
-import ManagerPage    from './pages/ManagerPage'
-import VendorPage     from './pages/VendorPage'
-import AppLayout      from './components/AppLayout'
-import ProtectedRoute from './components/ProtectedRoute'
+import LoginPage          from './pages/LoginPage'
+import ResetPasswordPage  from './pages/ResetPasswordPage'
+import AdminPage          from './pages/AdminPage'
+import ManagerPage        from './pages/ManagerPage'
+import VendorPage         from './pages/VendorPage'
+import AppLayout          from './components/AppLayout'
+import ProtectedRoute     from './components/ProtectedRoute'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Pública */}
-        <Route path="/login" element={<LoginPage />} />
+        {/* Públicas */}
+        <Route path="/login"          element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Protegidas — comparten layout */}
         <Route element={

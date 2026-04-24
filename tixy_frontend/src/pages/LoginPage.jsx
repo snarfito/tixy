@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
+import { login, forgotPassword } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
 
 export default function LoginPage() {
@@ -39,10 +39,15 @@ export default function LoginPage() {
   async function handleForgotPassword(e) {
     e.preventDefault()
     setForgotLoading(true)
-    console.log(`[Tixy] Solicitud de reset de contraseña para: ${forgotEmail}`)
-    await new Promise(r => setTimeout(r, 800))
-    setForgotLoading(false)
-    setForgotSent(true)
+    try {
+      await forgotPassword(forgotEmail)
+    } catch (_) {
+      // Silenciamos el error: la UI siempre muestra confirmación
+      // para no revelar si el email existe en el sistema
+    } finally {
+      setForgotLoading(false)
+      setForgotSent(true)
+    }
   }
 
   // ── Logo compartido ──────────────────────────────────────────────────────
@@ -88,7 +93,7 @@ export default function LoginPage() {
                 Recuperar contraseña
               </h2>
               <p className="text-xs text-white/40 text-center mb-6">
-                Ingresa tu correo y notificaremos al administrador para que te asigne una contraseña temporal.
+                Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
               </p>
 
               <form onSubmit={handleForgotPassword} className="space-y-4">

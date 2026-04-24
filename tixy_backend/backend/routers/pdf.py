@@ -31,7 +31,8 @@ from models.user import User, UserRole
 _ASSETS   = Path(__file__).parent.parent / "assets"
 _FONTS    = _ASSETS / "fonts"
 _LOGO_W   = _ASSETS / "logo-blanco.png"   # logo blanco para fondo oscuro
-_LOGO_R   = _ASSETS / "logo-rojo.png"     # logo rojo  (reservado para futuro uso)
+_LOGO_R   = _ASSETS / "logo-rojo.png"     # logo rojo para fondo claro
+_LOGO_P   = _ASSETS / "logo-pink.png"     # logo #C0206A para fondo oscuro
 
 # ---------------------------------------------------------------------------
 # Registro de fuentes
@@ -151,6 +152,7 @@ def _draw_page_header(canv, order: "Order", full: bool) -> None:
     """
     full=True  → encabezado grande con logo, datos y numero de orden (pagina 1)
     full=False → franja compacta con logo y numero de orden (paginas 2+)
+    Fondo blanco, logo rojo — fiel a la plantilla impresa de marca.
     """
     PAGE_W, PAGE_H = letter
     L = 1.4 * cm
@@ -167,64 +169,70 @@ def _draw_page_header(canv, order: "Order", full: bool) -> None:
     canv.setFillColor(DARK)
     canv.roundRect(L, BOT_Y, W, H, radius=7, fill=1, stroke=0)
 
-    # ── Logo imagen (logo-blanco.png) ────────────────────────────────────
-    if _LOGO_W.exists():
+    # ── Logo #C0206A sobre fondo oscuro ────────────────────────────────────
+    logo_path = _LOGO_P if _LOGO_P.exists() else (_LOGO_W if _LOGO_W.exists() else None)
+    if logo_path:
         if full:
-            logo_h = 1.55 * cm
+            logo_h = 1.45 * cm
+            # Anclar logo desde arriba con padding fijo para que el bloque
+            # logo + texto de contacto quede centrado visualmente
+            logo_y = TOP_Y - 0.45 * cm - logo_h
         else:
-            logo_h = 0.95 * cm
+            logo_h = 0.9 * cm
+            # Centrar verticalmente en header compacto
+            logo_y = BOT_Y + (H - logo_h) / 2
 
         # Proporcion real del logo: 480x199 ≈ 2.41:1
         logo_w = logo_h * (480 / 199)
-        logo_x = L + 0.5 * cm
-        logo_y = BOT_Y + (H - logo_h) / 2
+        logo_x = L + 0.4 * cm
 
         canv.drawImage(
-            str(_LOGO_W),
+            str(logo_path),
             logo_x, logo_y,
             width=logo_w, height=logo_h,
-            mask="auto",   # respeta canal alpha del PNG
+            mask="auto",
             preserveAspectRatio=True,
         )
 
         # Datos de contacto debajo del logo (solo en encabezado completo)
         if full:
             canv.setFillColor(colors.HexColor("#C09090"))
-            canv.setFont("Helvetica", 6.8)
-            txt_x = logo_x
-            txt_y = logo_y - 0.30 * cm
-            canv.drawString(txt_x, txt_y,          "Transversal 49c #59-62, 4to piso \u00b7 Centro Mundial De La Moda")
-            canv.drawString(txt_x, txt_y - 0.3*cm, "319 680 0557  \u00b7  313 623 1499")
+            canv.setFont(F_BODY, 6.5)
+            txt_y = logo_y - 0.28 * cm
+            canv.drawString(logo_x, txt_y,
+                            "Transversal 49c #59-62, 4to piso  \u00b7  Centro Mundial De La Moda")
+            canv.drawString(logo_x, txt_y - 0.28 * cm,
+                            "319 680 0557  \u00b7  313 623 1499")
     else:
-        # Fallback: texto si no hay imagen del logo
+        # Fallback: texto si no hay imagen
         canv.setFillColor(PINK)
         canv.setFont("Helvetica-BoldOblique", 28 if full else 18)
-        canv.drawString(L + 0.5 * cm, BOT_Y + H * 0.55, "Tixy Glamour")
+        canv.drawString(L + 0.5 * cm, BOT_Y + H * 0.5, "Tixy Glamour")
 
     # ── Separador vertical ───────────────────────────────────────────────
     mid_x = L + W * 0.56
     canv.setStrokeColor(colors.HexColor("#5A2040"))
     canv.setLineWidth(0.5)
-    canv.line(mid_x, BOT_Y + 0.25 * cm, mid_x, TOP_Y - 0.25 * cm)
+    canv.line(mid_x, BOT_Y + 0.2 * cm, mid_x, TOP_Y - 0.45 * cm)
 
     # ── Columna derecha: titulo + numero + fecha ─────────────────────────
-    x_right = PAGE_W - R - 0.5 * cm
+    x_right = PAGE_W - R - 0.4 * cm
     if full:
         canv.setFillColor(colors.HexColor("#E8B0C8"))
-        canv.setFont(F_BODY, 7.5)
-        canv.drawRightString(x_right, TOP_Y - 0.6 * cm, "ORDEN DE PEDIDO")
+        canv.setFont(F_BODY, 7)
+        canv.drawRightString(x_right, TOP_Y - 0.75 * cm, "ORDEN DE PEDIDO")
 
         canv.setFillColor(PINK)
         canv.setFont(F_BOLD, 26)
-        canv.drawRightString(x_right, TOP_Y - 1.85 * cm, f"#{order.order_number}")
+        canv.drawRightString(x_right, TOP_Y - 1.9 * cm, f"#{order.order_number}")
 
         canv.setFillColor(colors.HexColor("#C09090"))
-        canv.setFont(F_BODY, 8)
+        canv.setFont(F_BODY, 7.5)
         canv.drawRightString(x_right, TOP_Y - 2.55 * cm,
                              order.created_at.strftime("%d/%m/%Y"))
     else:
         canv.setFillColor(colors.HexColor("#E8B0C8"))
-        canv.setFont(F_BODY, 7)
+        canv.setFont(F_BODY, 6.5)
         canv.drawRightString(x_right, TOP_Y - 0.52 * cm, "ORDEN DE PEDIDO")
 
         canv.setFillColor(PINK)
@@ -233,12 +241,12 @@ def _draw_page_header(canv, order: "Order", full: bool) -> None:
 
         canv.setFillColor(colors.HexColor("#C09090"))
         canv.setFont(F_BODY, 7)
-        canv.drawRightString(x_right, TOP_Y - 1.52 * cm,
+        canv.drawRightString(x_right, TOP_Y - 1.5 * cm,
                              order.created_at.strftime("%d/%m/%Y"))
 
     canv.restoreState()
 
-    # ── Banda decorativa de estrellas al pie (fiel a la plantilla) ───────
+    # ── Banda de estrellas al pie (fiel a la plantilla) ──────────────────
     _draw_star_band(
         canv,
         y      = 0.3  * cm,
