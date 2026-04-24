@@ -32,6 +32,14 @@ class OrderCreate(BaseModel):
     lines:         list[OrderLineCreate]
 
 
+class OrderUpdate(BaseModel):
+    """Actualización parcial de un pedido en estado DRAFT o SENT."""
+    store_id:      Optional[int]                   = None
+    collection_id: Optional[int]                   = None
+    notes:         Optional[str]                   = None
+    lines:         Optional[list[OrderLineCreate]] = None
+
+
 class OrderOut(BaseModel):
     model_config = {"from_attributes": True}
 

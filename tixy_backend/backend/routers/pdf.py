@@ -15,6 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas as pdfcanvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import Flowable
 from sqlalchemy.orm import Session, joinedload
@@ -52,6 +53,131 @@ LINE      = colors.HexColor("#E0C8D4")
 WHITE     = colors.white
 BLACK     = colors.HexColor("#111111")
 TEXT_SOFT = colors.HexColor("#999999")
+
+
+# ── Canvas con número de páginas ──────────────────────────────────────────
+class NumberedCanvas(pdfcanvas.Canvas):
+    """
+    Canvas personalizado que acumula el estado de cada página y,
+    al guardar, dibuja 'Hoja X de N' en el pie de cada hoja.
+    Esto requiere un doble pase: primero se construyen todas las páginas
+    y después se estampa el total real de hojas.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states: list[dict] = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        total = len(self._saved_page_states)
+        for i, state in enumerate(self._saved_page_states, 1):
+            self.__dict__.update(state)
+            if total > 1:          # solo mostrar si hay más de una página
+                self._stamp_page_label(i, total)
+            super().showPage()
+        super().save()
+
+    def _stamp_page_label(self, page_num: int, total: int):
+        self.saveState()
+        self.setFont("Helvetica", 7.5)
+        self.setFillColor(colors.HexColor("#BBBBBB"))
+        label = f"Hoja {page_num} de {total}"
+        # Pie de página centrado
+        self.drawCentredString(letter[0] / 2, 0.55 * cm, label)
+        # Línea decorativa fina sobre el texto
+        self.setStrokeColor(colors.HexColor("#E8D0DA"))
+        self.setLineWidth(0.4)
+        self.line(
+            1.4 * cm,        0.85 * cm,
+            letter[0] - 1.4 * cm, 0.85 * cm,
+        )
+        self.restoreState()
+
+
+# ── Encabezado dibujado directamente en el canvas ──────────────────────────
+def _draw_page_header(canv, order: "Order", full: bool) -> None:
+    """
+    Dibuja el encabezado de marca sobre el canvas de cada página.
+
+    full=True  → encabezado grande con logo, dirección y número de orden (página 1)
+    full=False → franja compacta solo con logo y número de orden (páginas 2+)
+    """
+    PAGE_W, PAGE_H = letter
+    L  = 1.4 * cm
+    R  = 1.4 * cm
+    W  = PAGE_W - L - R
+    TOP_Y = PAGE_H - 0.3 * cm
+    H     = 2.8 * cm if full else 1.6 * cm
+    BOT_Y = TOP_Y - H
+
+    canv.saveState()
+
+    # Fondo oscuro con esquinas superiores redondeadas
+    canv.setFillColor(DARK)
+    canv.roundRect(L, BOT_Y, W, H, radius=7, fill=1, stroke=0)
+
+    # ── Columna izquierda (logo + info) ──────────────────────────────
+    x_left = L + 0.5 * cm
+    if full:
+        canv.setFillColor(PINK)
+        canv.setFont(LOGO_FONT, LOGO_SIZE)
+        canv.drawString(x_left, TOP_Y - 1.2 * cm, "Tixy")
+
+        canv.setFillColor(colors.HexColor("#E8A0C0"))
+        canv.setFont("Helvetica", 7.5)
+        canv.drawString(x_left, TOP_Y - 1.75 * cm, "es moda \u00b7 GLAMOUR")
+
+        canv.setFillColor(colors.HexColor("#C09090"))
+        canv.setFont("Helvetica", 7)
+        canv.drawString(x_left, TOP_Y - 2.15 * cm, "Transversal 49c #59-62, 4to piso")
+        canv.drawString(x_left, TOP_Y - 2.43 * cm, "Centro Mundial De La Moda")
+        canv.drawString(x_left, TOP_Y - 2.68 * cm, "319 680 0557  \u00b7  313 623 1499")
+    else:
+        canv.setFillColor(PINK)
+        canv.setFont(LOGO_FONT, 22)
+        canv.drawString(x_left, TOP_Y - 1.05 * cm, "Tixy")
+
+        canv.setFillColor(colors.HexColor("#E8A0C0"))
+        canv.setFont("Helvetica", 7)
+        canv.drawString(x_left, TOP_Y - 1.4 * cm, "es moda \u00b7 GLAMOUR")
+
+    # Separador vertical entre columnas
+    mid_x = L + W * 0.56
+    canv.setStrokeColor(colors.HexColor("#5A2040"))
+    canv.setLineWidth(0.5)
+    canv.line(mid_x, BOT_Y + 0.25 * cm, mid_x, TOP_Y - 0.25 * cm)
+
+    # ── Columna derecha (título + número + fecha) ────────────────────────
+    x_right = PAGE_W - R - 0.5 * cm
+    if full:
+        canv.setFillColor(colors.HexColor("#E8B0C8"))
+        canv.setFont("Helvetica", 7.5)
+        canv.drawRightString(x_right, TOP_Y - 0.6 * cm, "ORDEN DE PEDIDO")
+
+        canv.setFillColor(PINK)
+        canv.setFont("Helvetica-Bold", 26)
+        canv.drawRightString(x_right, TOP_Y - 1.85 * cm, f"#{order.order_number}")
+
+        canv.setFillColor(colors.HexColor("#C09090"))
+        canv.setFont("Helvetica", 8)
+        canv.drawRightString(x_right, TOP_Y - 2.55 * cm, order.created_at.strftime("%d/%m/%Y"))
+    else:
+        canv.setFillColor(colors.HexColor("#E8B0C8"))
+        canv.setFont("Helvetica", 7)
+        canv.drawRightString(x_right, TOP_Y - 0.52 * cm, "ORDEN DE PEDIDO")
+
+        canv.setFillColor(PINK)
+        canv.setFont("Helvetica-Bold", 18)
+        canv.drawRightString(x_right, TOP_Y - 1.25 * cm, f"#{order.order_number}")
+
+        canv.setFillColor(colors.HexColor("#C09090"))
+        canv.setFont("Helvetica", 7)
+        canv.drawRightString(x_right, TOP_Y - 1.52 * cm, order.created_at.strftime("%d/%m/%Y"))
+
+    canv.restoreState()
 
 
 # -- Flowable con esquinas superiores redondeadas -----------------------------
@@ -109,132 +235,16 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
         pagesize=letter,
         leftMargin=L_MARGIN,
         rightMargin=R_MARGIN,
-        topMargin=1.4 * cm,
+        topMargin=3.3 * cm,   # espacio para el encabezado en todas las páginas
         bottomMargin=1.8 * cm,
     )
     styles = getSampleStyleSheet()
     story  = []
 
-    # -- Estilos de parrafo ---------------------------------------------------
-    brand_style = ParagraphStyle(
-        "brand",
-        parent=styles["Normal"],
-        textColor=PINK,
-        fontName=LOGO_FONT,
-        fontSize=LOGO_SIZE,
-        leading=LOGO_SIZE + 2,
-        spaceAfter=0,
-    )
-    tagline_style = ParagraphStyle(
-        "tagline",
-        parent=styles["Normal"],
-        textColor=colors.HexColor("#E8A0C0"),
-        fontName="Helvetica",
-        fontSize=7.5,
-        leading=10,
-        spaceAfter=1,
-    )
-    meta_style = ParagraphStyle(
-        "meta",
-        parent=styles["Normal"],
-        textColor=colors.HexColor("#C09090"),
-        fontName="Helvetica",
-        fontSize=7,
-        leading=9.5,
-    )
-    header_title_style = ParagraphStyle(
-        "header_title",
-        parent=styles["Normal"],
-        textColor=colors.HexColor("#E8B0C8"),
-        fontName="Helvetica",
-        fontSize=7.5,
-        leading=10,
-        alignment=2,
-        spaceAfter=2,
-    )
-    header_order_style = ParagraphStyle(
-        "header_order",
-        parent=styles["Normal"],
-        textColor=PINK,
-        fontName="Helvetica-Bold",
-        fontSize=28,
-        leading=30,
-        alignment=2,
-    )
-    header_date_style = ParagraphStyle(
-        "header_date",
-        parent=styles["Normal"],
-        textColor=colors.HexColor("#C09090"),
-        fontName="Helvetica",
-        fontSize=8,
-        leading=10,
-        alignment=2,
-    )
+    # El encabezado se dibuja vía callbacks onFirstPage / onLaterPages.
+    # (ver doc.build al final de esta función)
 
-    # -- Contenido interior del encabezado ------------------------------------
-    # Columna izquierda: logo sube 4pt con spaceAfter negativo simulado via leading
-    header_left = Table(
-        [
-            [Paragraph("Tixy", brand_style)],
-            [Paragraph("es moda \u00b7 GLAMOUR", tagline_style)],
-            [Paragraph("Transversal 49c #59-62, 4to piso", meta_style)],
-            [Paragraph("Centro Mundial De La Moda", meta_style)],
-            [Paragraph("319 680 0557 \u00b7 313 623 1499", meta_style)],
-        ],
-        colWidths=["100%"],
-    )
-    header_left.setStyle(TableStyle([
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-
-    # Columna derecha: titulo + numero + fecha
-    header_right = Table(
-        [
-            [Paragraph("ORDEN DE PEDIDO", header_title_style)],
-            [Paragraph(f"#{order.order_number}", header_order_style)],
-            [Paragraph(order.created_at.strftime("%d/%m/%Y"), header_date_style)],
-        ],
-        colWidths=["100%"],
-    )
-    header_right.setStyle(TableStyle([
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-    ]))
-
-    # Tabla interior (transparente, solo layout de columnas)
-    inner = Table([[header_left, header_right]], colWidths=[USABLE_W * 0.58, USABLE_W * 0.42])
-    inner.setStyle(TableStyle([
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-        ("LEFTPADDING",   (0, 0), (0, -1),  14),
-        ("RIGHTPADDING",  (0, 0), (0, -1),  14),
-        ("LEFTPADDING",   (1, 0), (1, -1),  14),
-        ("RIGHTPADDING",  (1, 0), (1, -1),  18),
-        ("LINEAFTER",     (0, 0), (0, -1),  0.5, colors.HexColor("#5A2040")),
-    ]))
-
-    # Calcular altura real de la tabla para el bloque redondeado
-    inner.wrapOn(None, USABLE_W, 999)
-    header_h = inner._height
-
-    header_block = TopRoundedBlock(
-        width=USABLE_W,
-        height=header_h,
-        radius=8,
-        fill_color=DARK,
-        inner_table=inner,
-    )
-    story.append(header_block)
-    story.append(Spacer(1, 0.25 * cm))
-
-    # -- Barra del vendedor (esquinas sup redondeadas) ------------------------
+    # ── Barra del vendedor (esquinas sup redondeadas) ------------------------
     vendor  = order.vendor
     contact = vendor.contact_info or vendor.phone or ""
 
@@ -423,7 +433,12 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
         ]))
         story.append(t)
 
-    doc.build(story)
+    doc.build(
+        story,
+        onFirstPage  = lambda c, d: _draw_page_header(c, order, full=True),
+        onLaterPages = lambda c, d: _draw_page_header(c, order, full=False),
+        canvasmaker  = NumberedCanvas,
+    )
     return buf.getvalue()
 
 

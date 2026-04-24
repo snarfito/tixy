@@ -33,3 +33,9 @@ export const downloadPdfVendor = async (orderId) => {
 
 export const listOrders = (params) =>
   api.get('/orders/', { params }).then(r => r.data)
+
+export const getOrder = (orderId) =>
+  api.get(`/orders/${orderId}`).then(r => r.data)
+
+export const updateOrder = (orderId, payload) =>
+  api.patch(`/orders/${orderId}`, payload).then(r => r.data)

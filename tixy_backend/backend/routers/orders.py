@@ -10,7 +10,7 @@ from core.deps import get_current_user, require_manager, require_vendor
 from models.order import Order, OrderLine, OrderStatus
 from models.reference import Reference
 from models.user import User, UserRole
-from schemas.order import OrderCreate, OrderOut, OrderSummary
+from schemas.order import OrderCreate, OrderOut, OrderSummary, OrderUpdate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -118,6 +118,59 @@ def create_order(
 
     db.commit()
     return _load_order(db, order.id)
+
+
+@router.patch("/{order_id}", response_model=OrderOut)
+def update_order(
+    order_id: int,
+    payload:  OrderUpdate,
+    db: Session = Depends(get_db),
+    me: User    = Depends(require_vendor),
+):
+    """Vendedor edita un pedido propio en estado DRAFT o SENT.
+    Si estaba SENT, regresa a DRAFT automáticamente para que lo re-envíe."""
+    order = _load_order(db, order_id)
+    if order.vendor_id != me.id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    if order.status in (OrderStatus.CONFIRMED, OrderStatus.CANCELLED):
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede editar un pedido confirmado o cancelado",
+        )
+
+    if payload.store_id is not None:
+        order.store_id = payload.store_id
+    if payload.collection_id is not None:
+        order.collection_id = payload.collection_id
+    if payload.notes is not None:
+        order.notes = payload.notes
+
+    if payload.lines is not None:
+        # Reemplazar todas las líneas existentes
+        for line in list(order.lines):
+            db.delete(line)
+        db.flush()
+        for ln in payload.lines:
+            ref = db.get(Reference, ln.reference_id)
+            if not ref:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Referencia {ln.reference_id} no existe",
+                )
+            db.add(OrderLine(
+                order_id=order.id,
+                reference_id=ln.reference_id,
+                quantity=ln.quantity,
+                unit_price=ln.unit_price,
+            ))
+
+    # Si estaba enviado y se edita, vuelve a borrador
+    if order.status == OrderStatus.SENT:
+        order.status  = OrderStatus.DRAFT
+        order.sent_at = None
+
+    db.commit()
+    return _load_order(db, order_id)
 
 
 @router.post("/{order_id}/send", response_model=OrderOut)
