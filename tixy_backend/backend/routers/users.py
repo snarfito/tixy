@@ -74,9 +74,12 @@ def update_user(
     # Proteger al superusuario: nadie puede modificarlo (ni desactivarlo)
     if user.is_superuser and user.id != current_user.id:
         raise HTTPException(status_code=403, detail="No se puede modificar el superusuario")
-    # Evitar que el superusuario sea desactivado incluso por sí mismo
-    if user.is_superuser and payload.is_active is False:
-        raise HTTPException(status_code=403, detail="El superusuario no puede ser desactivado")
+    # Evitar que el superusuario sea desactivado o degradado incluso por sí mismo
+    if user.is_superuser:
+        if payload.is_active is False:
+            raise HTTPException(status_code=403, detail="El superusuario no puede ser desactivado")
+        if payload.role and payload.role != user.role:
+            raise HTTPException(status_code=403, detail="No se puede cambiar el rol del superusuario")
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(user, field, value)
     db.commit()
