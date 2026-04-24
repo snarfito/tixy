@@ -6,8 +6,11 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',   // breakpoint extra para etiquetas de tabs
+      },
       fontFamily: {
-        sans:   ['Jost', 'sans-serif'],
+        sans:   ['Sora', 'sans-serif'],
         mono:   ['DM Mono', 'monospace'],
         script: ['Great Vibes', 'cursive'],
       },

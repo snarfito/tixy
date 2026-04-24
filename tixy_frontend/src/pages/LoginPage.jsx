@@ -59,17 +59,13 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#1a0d14] via-[#2e0d1e] to-[#1a0d14]">
         <div className="mb-8 text-center">
-          <div className="font-script text-7xl leading-none"
-            style={{
-              background: 'linear-gradient(135deg,#f5c0d8 0%,#e8a0c0 30%,#d4608c 60%,#c9907a 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.5))',
-            }}>
-            Tixy
-          </div>
-          <div className="mt-1 text-xs tracking-[5px] uppercase text-white/30 font-light">
-            Glamour · Sistema de Pedidos
+          <img
+            src="/logo-blanco.png"
+            alt="Tixy Glamour"
+            className="h-16 w-auto mx-auto object-contain"
+          />
+          <div className="mt-3 text-xs tracking-[5px] uppercase text-white/30 font-light">
+            Sistema de Pedidos
           </div>
         </div>
 
@@ -140,17 +136,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#1a0d14] via-[#2e0d1e] to-[#1a0d14]">
       <div className="mb-8 text-center">
-        <div className="font-script text-7xl leading-none"
-          style={{
-            background: 'linear-gradient(135deg,#f5c0d8 0%,#e8a0c0 30%,#d4608c 60%,#c9907a 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.5))',
-          }}>
-          Tixy
-        </div>
-        <div className="mt-1 text-xs tracking-[5px] uppercase text-white/30 font-light">
-          Glamour · Sistema de Pedidos
+        <img
+          src="/logo-blanco.png"
+          alt="Tixy Glamour"
+          className="h-16 w-auto mx-auto object-contain"
+        />
+        <div className="mt-3 text-xs tracking-[5px] uppercase text-white/30 font-light">
+          Sistema de Pedidos
         </div>
       </div>
 
