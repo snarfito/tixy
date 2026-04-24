@@ -30,10 +30,12 @@ app.add_exception_handler(
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# En producción reemplaza "*" con el dominio del frontend
+# Orígenes permitidos: configura ALLOWED_ORIGINS en el .env de producción
+origenes = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origenes,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

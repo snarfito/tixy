@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "Tixy Glamour — Sistema de Pedidos"
     DEBUG: bool = False
 
+    # CORS — en producción pon los dominios reales separados por coma
+    # Ejemplo: "https://tixyglamour.com,https://app.tixyglamour.com"
+    ALLOWED_ORIGINS: str = "*"
+
     @property
     def database_url(self) -> str:
         return (
