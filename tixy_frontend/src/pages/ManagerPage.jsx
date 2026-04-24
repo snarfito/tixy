@@ -511,12 +511,12 @@ export default function ManagerPage() {
   return (
     <div>
       {/* ── Header ── */}
-      <div className="mb-6 flex items-baseline justify-between">
+      <div className="mb-4 sm:mb-6 flex items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Panel de Gerencia</h1>
-          <p className="text-ink-3 text-sm">Seguimiento de ventas por pedido, referencia y vendedor.</p>
+          <h1 className="text-lg sm:text-xl font-semibold text-ink">Panel de Gerencia</h1>
+          <p className="text-ink-3 text-sm hidden sm:block">Seguimiento de ventas por pedido, referencia y vendedor.</p>
         </div>
-        <button onClick={handleRefresh} className="btn-secondary text-xs px-3 py-1.5">↻ Actualizar</button>
+        <button onClick={handleRefresh} className="btn-secondary text-xs px-3 py-1.5 shrink-0">↻ Actualizar</button>
       </div>
 
       {banner && (
@@ -556,35 +556,35 @@ export default function ManagerPage() {
       {activeTab === 'pedidos' && (
         <>
           {/* ── Filtros ── */}
-          <div className="flex gap-2 flex-wrap mb-4 items-center">
-            <span className="text-xs text-ink-3 font-medium">Filtrar:</span>
+          <div className="flex flex-col sm:flex-row gap-2 flex-wrap mb-4 sm:items-center">
+            <span className="text-xs text-ink-3 font-medium hidden sm:block">Filtrar:</span>
 
             <select value={fCol} onChange={e => setFCol(e.target.value)}
-              className="input-base w-auto text-xs py-1.5">
+              className="input-base w-full sm:w-auto text-xs py-1.5">
               <option value="">Todas las colecciones</option>
               {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
 
             <select value={fStatus} onChange={e => setFStatus(e.target.value)}
-              className="input-base w-auto text-xs py-1.5">
+              className="input-base w-full sm:w-auto text-xs py-1.5">
               <option value="">Todos los estados</option>
               {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
 
             <select value={fCity} onChange={e => setFCity(e.target.value)}
-              className="input-base w-auto text-xs py-1.5">
+              className="input-base w-full sm:w-auto text-xs py-1.5">
               <option value="">Todas las ciudades</option>
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
             <select value={fVendor} onChange={e => setFVendor(e.target.value)}
-              className="input-base w-auto text-xs py-1.5">
+              className="input-base w-full sm:w-auto text-xs py-1.5">
               <option value="">Todos los usuarios</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.full_name} ({v.role})</option>)}
             </select>
 
             <select value={fCategory} onChange={e => setFCategory(e.target.value)}
-              className="input-base w-auto text-xs py-1.5">
+              className="input-base w-full sm:w-auto text-xs py-1.5">
               <option value="">Todas las categorías</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>

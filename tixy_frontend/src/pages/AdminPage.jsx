@@ -304,20 +304,20 @@ function RefsSection() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line">
-        <div className="px-4 py-3 border-b border-line bg-surface flex flex-wrap gap-2 items-center">
+        <div className="px-4 py-3 border-b border-line bg-surface flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center">
           <input
             value={filterDesc}
             onChange={e => setFilterDesc(e.target.value)}
             placeholder="Buscar por código o descripción…"
-            className="input-base text-xs py-1.5 w-56"
+            className="input-base text-xs py-1.5 w-full sm:w-56"
           />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-            className="input-base w-auto text-xs py-1.5">
+            className="input-base w-full sm:w-auto text-xs py-1.5">
             <option value="">Todas las categorías</option>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="input-base w-auto text-xs py-1.5">
+            className="input-base w-full sm:w-auto text-xs py-1.5">
             <option value="">Todos los estados</option>
             <option value="active">Solo activas</option>
             <option value="inactive">Solo inactivas</option>
@@ -325,7 +325,7 @@ function RefsSection() {
           {(filterDesc || filterCat || filterStatus) && (
             <button
               onClick={() => { setFilterDesc(''); setFilterCat(''); setFilterStatus('') }}
-              className="text-xs text-pink-dark hover:underline">
+              className="text-xs text-pink-dark hover:underline text-left sm:text-center">
               × Limpiar filtros
             </button>
           )}
@@ -1204,10 +1204,10 @@ function ClientsSection() {
 // PÁGINA PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 const TABS = [
-  { id: 'refs',    label: 'Referencias', icon: '≡' },
-  { id: 'cols',    label: 'Colecciones', icon: '📦' },
-  { id: 'clients', label: 'Clientes',    icon: '🏪' },
-  { id: 'users',   label: 'Usuarios',    icon: '👤' },
+  { id: 'refs',    label: 'Referencias', short: 'Refs',  icon: '≡' },
+  { id: 'cols',    label: 'Colecciones', short: 'Cols',  icon: '📦' },
+  { id: 'clients', label: 'Clientes',    short: 'Clientes', icon: '🏪' },
+  { id: 'users',   label: 'Usuarios',    short: 'Usuarios', icon: '👤' },
 ]
 
 export default function AdminPage() {
@@ -1215,17 +1215,20 @@ export default function AdminPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-ink">Administración</h1>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-lg sm:text-xl font-semibold text-ink">Administración</h1>
         <p className="text-ink-3 text-sm">Gestiona referencias, colecciones y usuarios.</p>
       </div>
 
-      <div className="flex gap-1 border-b border-line mb-6">
+      <div className="flex gap-0 border-b border-line mb-4 sm:mb-6 overflow-x-auto scrollbar-none">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-5 py-3 text-[13px] font-medium border-b-2 transition-colors
-              ${tab === t.id ? 'text-pink-dark border-pink' : 'text-ink-3 border-transparent hover:text-ink-2'}`}>
-            <span>{t.icon}</span> {t.label}
+            className={`flex items-center gap-1 px-3 sm:px-5 py-2.5 sm:py-3
+              text-[11px] sm:text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap flex-1 sm:flex-none justify-center sm:justify-start
+              ${tab === t.id ? 'text-pink-dark border-pink bg-pink-light/40 sm:bg-transparent' : 'text-ink-3 border-transparent hover:text-ink-2'}`}>
+            <span className="text-sm sm:text-base">{t.icon}</span>
+            <span className="hidden xs:inline sm:hidden">{t.short}</span>
+            <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>

@@ -14,13 +14,11 @@ api.interceptors.request.use((config) => {
   return config
 }, (error) => Promise.reject(error))
 
-// Solo redirige al login si el token expiró realmente (/auth/me)
+// Redirige al login ante cualquier 401 (sesión vencida o token inválido)
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const is401    = err.response?.status === 401
-    const isAuthMe = err.config?.url?.includes('/auth/me')
-    if (is401 && isAuthMe) {
+    if (err.response?.status === 401) {
       localStorage.removeItem('tixy_token')
       localStorage.removeItem('tixy_user')
       window.location.href = '/login'
