@@ -24,6 +24,7 @@ class User(Base):
     hashed_pw:    Mapped[str]      = mapped_column(String(255))
     role:         Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.VENDOR)
     is_active:    Mapped[bool]     = mapped_column(Boolean, default=True)
+    is_superuser: Mapped[bool]     = mapped_column(Boolean, default=False)
     created_at:   Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

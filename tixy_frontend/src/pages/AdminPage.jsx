@@ -768,7 +768,15 @@ function UsersSection() {
               <tr><td colSpan={6} className="text-center py-10 text-ink-3 text-sm">No hay usuarios.</td></tr>
             ) : users.map(user => (
               <tr key={user.id} className={`border-b border-line hover:bg-surface ${!user.is_active ? 'opacity-40' : ''}`}>
-                <td className="px-4 py-2.5 text-sm font-medium text-ink">{user.full_name}</td>
+                <td className="px-4 py-2.5 text-sm font-medium text-ink">
+                  <span>{user.full_name}</span>
+                  {user.is_superuser && (
+                    <span className="ml-2 inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold
+                                     bg-pink-dark text-white tracking-wider" title="Superusuario protegido">
+                      SUPER
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-sm text-ink-2">{user.email}</td>
                 <td className="px-4 py-2.5 text-sm text-ink-3">{user.phone || '—'}</td>
                 <td className="px-4 py-2.5 text-center">
@@ -785,10 +793,14 @@ function UsersSection() {
                 <td className="px-3 py-2.5">
                   <div className="flex items-center justify-center gap-1">
                     <ActionBtn onClick={() => openEdit(user)} title="Editar">✏️</ActionBtn>
-                    <ActionBtn onClick={() => openResetModal(user)} title="Restablecer contraseña">🔑</ActionBtn>
-                    <ActionBtn onClick={() => handleToggle(user)} title={user.is_active ? 'Desactivar' : 'Activar'} danger={user.is_active}>
-                      {user.is_active ? '🗑' : '↩'}
-                    </ActionBtn>
+                    {!user.is_superuser && (
+                      <>
+                        <ActionBtn onClick={() => openResetModal(user)} title="Restablecer contraseña">🔑</ActionBtn>
+                        <ActionBtn onClick={() => handleToggle(user)} title={user.is_active ? 'Desactivar' : 'Activar'} danger={user.is_active}>
+                          {user.is_active ? '🗑' : '↩'}
+                        </ActionBtn>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

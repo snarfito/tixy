@@ -20,6 +20,32 @@ Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 
+# ── Migraciones manuales (ALTER TABLE seguros) ────────────────────────────────
+def run_migrations(connection):
+    """
+    Aplica cambios de esquema que create_all no puede hacer automáticamente.
+    Cada ALTER está protegido para no fallar si la columna ya existe.
+    """
+    migrations = [
+        # v1 — Superusuario
+        "ALTER TABLE users ADD COLUMN is_superuser BOOLEAN NOT NULL DEFAULT FALSE",
+    ]
+    for sql in migrations:
+        try:
+            connection.execute(text(sql))
+            connection.commit()
+            print(f"✓ Migración aplicada: {sql[:60]}…")
+        except Exception as e:
+            connection.rollback()
+            if "Duplicate column" in str(e) or "1060" in str(e):
+                pass  # La columna ya existe, se ignora
+            else:
+                print(f"⚠️  Migración omitida ({e})")
+
+from sqlalchemy import text
+with engine.connect() as conn:
+    run_migrations(conn)
+
 try:
     # ── Admin ──────────────────────────────────────────────────────────────────
     if not db.query(User).filter(User.email == "admin@tixy.co").first():
@@ -34,6 +60,28 @@ try:
         print("✓ Usuario admin creado  →  admin@tixy.co / Tixy2026!")
     else:
         print("· Admin ya existe, se omite")
+
+    # ── Superusuario ──────────────────────────────────────────────────────────
+    SUPERUSER_EMAIL = "fredy.hortua@gmail.com"
+    superuser = db.query(User).filter(User.email == SUPERUSER_EMAIL).first()
+    if not superuser:
+        superuser = User(
+            full_name="Fredy Hortua",
+            email=SUPERUSER_EMAIL,
+            hashed_pw=hash_password("Tixy2026!"),
+            role=UserRole.ADMIN,
+            is_superuser=True,
+            contact_info="",
+        )
+        db.add(superuser)
+        print(f"✓ Superusuario creado  →  {SUPERUSER_EMAIL}")
+    elif not superuser.is_superuser:
+        # Si ya existe el usuario, solo promoverlo a superusuario
+        superuser.is_superuser = True
+        superuser.role = UserRole.ADMIN
+        print(f"✓ Superusuario promovido  →  {SUPERUSER_EMAIL}")
+    else:
+        print(f"· Superusuario ya existe  →  {SUPERUSER_EMAIL}")
 
     # ── Vendedores de ejemplo ──────────────────────────────────────────────────
     vendors = [

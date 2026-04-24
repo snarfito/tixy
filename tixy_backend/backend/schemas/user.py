@@ -31,6 +31,7 @@ class UserOut(BaseModel):
     phone:        Optional[str]
     contact_info: Optional[str]
     is_active:    bool
+    is_superuser: bool
 
 
 class PasswordReset(BaseModel):

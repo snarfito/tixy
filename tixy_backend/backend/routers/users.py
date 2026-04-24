@@ -51,6 +51,8 @@ def reset_user_password(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.is_superuser:
+        raise HTTPException(status_code=403, detail="No se puede modificar el superusuario")
     if len(payload.new_password) < 6:
         raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
     user.hashed_pw = hash_password(payload.new_password)
@@ -64,11 +66,17 @@ def update_user(
     user_id: int,
     payload: UserUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    # Proteger al superusuario: nadie puede modificarlo (ni desactivarlo)
+    if user.is_superuser and user.id != current_user.id:
+        raise HTTPException(status_code=403, detail="No se puede modificar el superusuario")
+    # Evitar que el superusuario sea desactivado incluso por sí mismo
+    if user.is_superuser and payload.is_active is False:
+        raise HTTPException(status_code=403, detail="El superusuario no puede ser desactivado")
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(user, field, value)
     db.commit()
