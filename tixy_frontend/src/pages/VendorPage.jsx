@@ -533,19 +533,37 @@ export default function VendorPage() {
               {showClientDD && clientResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-line
                                 rounded-lg shadow-lg z-50 max-h-56 overflow-y-auto">
-                  {clientResults.map(client =>
-                    client.stores.map(store => (
-                      <div key={store.id}
-                        onClick={() => selectStore(client, store)}
-                        className="px-4 py-2.5 hover:bg-pink-light cursor-pointer border-b border-line last:border-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-pink-dark font-mono">{client.nit || '—'}</span>
-                          <span className="text-sm text-ink font-medium">{client.business_name}</span>
-                        </div>
-                        <div className="text-xs text-ink-3 mt-0.5">{store.name} · {store.city}</div>
-                      </div>
-                    ))
-                  )}
+                  {clientResults.map(client => (
+                    client.stores.length > 0
+                      ? client.stores.map(store => (
+                          <div key={store.id}
+                            onClick={() => selectStore(client, store)}
+                            className="px-4 py-2.5 hover:bg-pink-light cursor-pointer border-b border-line last:border-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-pink-dark font-mono">{client.nit || '—'}</span>
+                              <span className="text-sm text-ink font-medium">{client.business_name}</span>
+                            </div>
+                            <div className="text-xs text-ink-3 mt-0.5">{store.name} · {store.city}</div>
+                          </div>
+                        ))
+                      : (
+                          <div key={client.id}
+                            onClick={() => {
+                              setClientName(client.business_name)
+                              setNit(client.nit || '')
+                              setTel(client.phone || '')
+                              setClientSearch('')
+                              setShowClientDD(false)
+                            }}
+                            className="px-4 py-2.5 hover:bg-pink-light cursor-pointer border-b border-line last:border-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-pink-dark font-mono">{client.nit || '—'}</span>
+                              <span className="text-sm text-ink font-medium">{client.business_name}</span>
+                            </div>
+                            <div className="text-xs text-ink-3 mt-0.5">Sin almacenes — ingresa el almacén manualmente</div>
+                          </div>
+                        )
+                  ))}
                 </div>
               )}
             </div>
