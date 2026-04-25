@@ -79,40 +79,71 @@ function OrderDetailModal({ order, onClose }) {
           </div>
         </div>
 
-        {/* Tabla de productos */}
-        <div className="px-6 py-4">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-2">Productos</div>
-          <div className="rounded-xl border border-line overflow-hidden">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="bg-pink text-white">
-                  <th className="px-3 py-2 text-left font-semibold">Ref.</th>
-                  <th className="px-3 py-2 text-left font-semibold">Descripción</th>
-                  <th className="px-3 py-2 text-center font-semibold">Categoría</th>
-                  <th className="px-3 py-2 text-right font-semibold">Cant.</th>
-                  <th className="px-3 py-2 text-right font-semibold">Vlr. unit.</th>
-                  <th className="px-3 py-2 text-right font-semibold">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-6 text-ink-3">Sin productos</td></tr>
-                ) : lines.map((ln, i) => (
-                  <tr key={ln.id} className={`border-t border-line ${i % 2 === 0 ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
-                    <td className="px-3 py-2 font-mono font-semibold text-pink-dark">{ln.reference?.code}</td>
-                    <td className="px-3 py-2 text-ink">{ln.reference?.description}</td>
-                    <td className="px-3 py-2 text-center text-ink-3">{ln.reference?.category}</td>
-                    <td className="px-3 py-2 text-right font-mono">{ln.quantity}</td>
-                    <td className="px-3 py-2 text-right font-mono">${ln.unit_price?.toLocaleString('es-CO')}</td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold">${ln.line_total?.toLocaleString('es-CO')}</td>
-                  </tr>
+        {/* Productos */}
+        <div className="px-4 sm:px-6 py-4">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-3">Productos</div>
+
+          {lines.length === 0 ? (
+            <div className="text-center py-6 text-ink-3 text-sm">Sin productos</div>
+          ) : (
+            <>
+              {/* Vista móvil: cards apiladas */}
+              <div className="flex flex-col gap-3 sm:hidden">
+                {lines.map(ln => (
+                  <div key={ln.id} className="rounded-xl border border-line bg-white p-3">
+                    {/* Fila superior: código + categoría + subtotal */}
+                    <div className="flex items-start justify-between mb-1">
+                      <div>
+                        <span className="font-mono font-bold text-pink-dark text-sm">{ln.reference?.code}</span>
+                        <span className="ml-2 text-[11px] text-ink-3">{ln.reference?.category}</span>
+                      </div>
+                      <span className="font-mono font-semibold text-pink-dark text-sm">
+                        ${ln.line_total?.toLocaleString('es-CO')}
+                      </span>
+                    </div>
+                    {/* Descripción */}
+                    <div className="text-xs text-ink mb-2">{ln.reference?.description}</div>
+                    {/* Fila inferior: cant + precio unitario */}
+                    <div className="flex gap-4 text-xs text-ink-3">
+                      <span>Cant. <strong className="text-ink font-mono">{ln.quantity}</strong></span>
+                      <span>Precio <strong className="text-ink font-mono">${ln.unit_price?.toLocaleString('es-CO')}</strong></span>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+
+              {/* Vista escritorio: tabla completa */}
+              <div className="hidden sm:block rounded-xl border border-line overflow-hidden">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-pink text-white">
+                      <th className="px-3 py-2 text-left font-semibold">Ref.</th>
+                      <th className="px-3 py-2 text-left font-semibold">Descripción</th>
+                      <th className="px-3 py-2 text-center font-semibold">Categoría</th>
+                      <th className="px-3 py-2 text-right font-semibold">Cant.</th>
+                      <th className="px-3 py-2 text-right font-semibold">Vlr. unit.</th>
+                      <th className="px-3 py-2 text-right font-semibold">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((ln, i) => (
+                      <tr key={ln.id} className={`border-t border-line ${i % 2 === 0 ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
+                        <td className="px-3 py-2 font-mono font-semibold text-pink-dark">{ln.reference?.code}</td>
+                        <td className="px-3 py-2 text-ink">{ln.reference?.description}</td>
+                        <td className="px-3 py-2 text-center text-ink-3">{ln.reference?.category}</td>
+                        <td className="px-3 py-2 text-right font-mono">{ln.quantity}</td>
+                        <td className="px-3 py-2 text-right font-mono">${ln.unit_price?.toLocaleString('es-CO')}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold">${ln.line_total?.toLocaleString('es-CO')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           {/* Total */}
-          <div className="flex justify-end mt-3 gap-8 text-sm">
+          <div className="flex justify-end mt-4 gap-6 text-sm border-t border-line pt-3">
             <div className="text-ink-3">Sub-total: <span className="font-semibold text-ink font-mono">${order.subtotal?.toLocaleString('es-CO')}</span></div>
             <div className="text-pink-dark font-bold">TOTAL: <span className="font-mono">${order.total?.toLocaleString('es-CO')}</span></div>
           </div>
