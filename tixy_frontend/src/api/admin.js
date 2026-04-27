@@ -45,11 +45,19 @@ export const deactivateCollection = (id) =>
 export const getUsers = () =>
   api.get('/users/').then(r => r.data)
 
+/**
+ * Crea un usuario nuevo SIN contraseña.
+ * El backend genera un token de invitación y envía el email automáticamente.
+ */
 export const createUser = (payload) =>
   api.post('/users/', payload).then(r => r.data)
 
-export const resetUserPassword = (id, newPassword) =>
-  api.patch(`/users/${id}/reset-password`, { new_password: newPassword }).then(r => r.data)
+/**
+ * Envía (o reenva) un email de invitación al usuario.
+ * El usuario recibirá un link único para crear/restablecer su contraseña.
+ */
+export const sendUserInvitation = (id) =>
+  api.post(`/users/${id}/send-invitation`).then(r => r.data)
 
 export const updateUser = (id, payload) =>
   api.patch(`/users/${id}`, payload).then(r => r.data)

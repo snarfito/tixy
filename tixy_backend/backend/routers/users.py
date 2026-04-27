@@ -1,13 +1,46 @@
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.deps import require_admin
+from core.email import send_invitation_email
 from core.security import hash_password
+from models.password_reset import PasswordResetToken
 from models.user import User
 from schemas.user import UserCreate, UserOut, UserUpdate, PasswordReset
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+# Expiración del token de invitación: 48 horas
+_INVITATION_EXPIRY_HOURS = 48
+
+
+def _generate_invitation_token(email: str, db: Session) -> str:
+    """
+    Invalida tokens previos del email, genera uno nuevo y lo persiste.
+    Retorna el token en claro (para incluirlo en el email).
+    """
+    # Invalidar tokens anteriores no usados
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.email == email,
+        PasswordResetToken.used  == False,   # noqa: E712
+    ).delete()
+
+    raw_token  = secrets.token_urlsafe(32)          # 256 bits de entropía
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=_INVITATION_EXPIRY_HOURS)
+
+    db.add(PasswordResetToken(
+        email=email,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    ))
+    db.commit()
+    return raw_token
 
 
 @router.get("/", response_model=list[UserOut])
@@ -24,41 +57,95 @@ def create_user(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
+    """
+    Crea un usuario nuevo.
+    - Si se provee 'password': se usa directamente (compatibilidad con seed/tests).
+    - Si no se provee 'password': la cuenta queda inactiva y se envía un email
+      de invitación para que el usuario cree su propia contraseña.
+    """
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Email ya registrado")
-    user = User(
-        full_name=payload.full_name,
-        email=payload.email,
-        hashed_pw=hash_password(payload.password),
-        role=payload.role,
-        phone=payload.phone,
-        contact_info=payload.contact_info,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+
+    if payload.password:
+        # Flujo directo (seed, admin que prefiere asignar contraseña)
+        user = User(
+            full_name=payload.full_name,
+            email=payload.email,
+            hashed_pw=hash_password(payload.password),
+            role=payload.role,
+            phone=payload.phone,
+            contact_info=payload.contact_info,
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        # Flujo de invitación: cuenta inactiva hasta que el usuario active con el link
+        placeholder_pw = hash_password(secrets.token_hex(32))   # hash irrepetible, nadie lo sabe
+        user = User(
+            full_name=payload.full_name,
+            email=payload.email,
+            hashed_pw=placeholder_pw,
+            role=payload.role,
+            phone=payload.phone,
+            contact_info=payload.contact_info,
+            is_active=False,   # se activa cuando el usuario crea su contraseña
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Generar token de invitación y enviar email
+        raw_token = _generate_invitation_token(user.email, db)
+        activation_link = f"https://app.tixyglamour.com/activate?token={raw_token}"
+        try:
+            send_invitation_email(
+                to_email=user.email,
+                to_name=user.full_name,
+                activation_link=activation_link,
+            )
+        except Exception as exc:
+            # El usuario ya fue creado; loguear el error pero no bloquear la respuesta
+            print(f"[Tixy] ⚠️  Error enviando invitación a {user.email}: {exc}")
+
     return user
 
 
-@router.patch("/{user_id}/reset-password", response_model=UserOut)
-def reset_user_password(
+@router.post("/{user_id}/send-invitation", status_code=200)
+def send_user_invitation(
     user_id: int,
-    payload: PasswordReset,
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    """Permite a un Admin asignar una contraseña temporal a cualquier usuario."""
+    """
+    Reenvía (o genera por primera vez) el email de invitación/activación para un usuario.
+    Usado cuando el admin quiere 'restablecer la contraseña' de forma segura:
+    el usuario recibirá un link único para crear su nueva contraseña.
+    """
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     if user.is_superuser:
-        raise HTTPException(status_code=403, detail="No se puede modificar el superusuario")
-    if len(payload.new_password) < 6:
-        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
-    user.hashed_pw = hash_password(payload.new_password)
-    db.commit()
-    db.refresh(user)
-    return user
+        raise HTTPException(status_code=403, detail="No se puede enviar invitación al superusuario")
+
+    raw_token = _generate_invitation_token(user.email, db)
+    activation_link = f"https://app.tixyglamour.com/activate?token={raw_token}"
+
+    try:
+        send_invitation_email(
+            to_email=user.email,
+            to_name=user.full_name,
+            activation_link=activation_link,
+        )
+    except Exception as exc:
+        print(f"[Tixy] ⚠️  Error enviando invitación a {user.email}: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo enviar el email. Verifica la configuración de Resend.",
+        ) from exc
+
+    return {"message": f"Email de invitación enviado a {user.email}"}
 
 
 @router.patch("/{user_id}", response_model=UserOut)
@@ -71,10 +158,9 @@ def update_user(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    # Proteger al superusuario: nadie puede modificarlo (ni desactivarlo)
+    # Proteger al superusuario
     if user.is_superuser and user.id != current_user.id:
         raise HTTPException(status_code=403, detail="No se puede modificar el superusuario")
-    # Evitar que el superusuario sea desactivado o degradado incluso por sí mismo
     if user.is_superuser:
         if payload.is_active is False:
             raise HTTPException(status_code=403, detail="El superusuario no puede ser desactivado")

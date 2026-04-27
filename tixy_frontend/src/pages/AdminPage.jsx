@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   getReferencesByCollection, createReference, updateReference, deleteReference,
   getCollections, createCollection, updateCollection, activateCollection, deactivateCollection,
-  getUsers, createUser, updateUser, resetUserPassword, copyReferences, bulkUpdateReferences,
+  getUsers, createUser, updateUser, sendUserInvitation, copyReferences, bulkUpdateReferences,
   listClients, createClient, updateClient, addStore, updateStore,
 } from '../api/admin'
 import fmt from '../utils/fmt'
@@ -660,25 +660,24 @@ function ColsSection() {
 // ════════════════════════════════════════════════════════════════════════════
 // USUARIOS
 // ════════════════════════════════════════════════════════════════════════════
-const EMPTY_USER = { full_name: '', email: '', password: '', role: 'vendor', phone: '', contact_info: '' }
+const EMPTY_USER = { full_name: '', email: '', role: 'vendor', phone: '', contact_info: '' }
 
 function UsersSection() {
   const [users,      setUsers]      = useState([])
   const [modal,      setModal]      = useState(null)   // null | 'create' | user-object
-  const [resetModal, setResetModal] = useState(null)   // null | user-object
+  const [inviteModal, setInviteModal] = useState(null) // null | user-object
   const [form,       setForm]       = useState(EMPTY_USER)
-  const [resetPw,    setResetPw]    = useState('')
   const [saving,     setSaving]     = useState(false)
   const [banner,     setBanner]     = useState(null)
 
   useEffect(() => { getUsers().then(setUsers) }, [])
 
-  function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3000) }
+  function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3500) }
   function openCreate()       { setForm(EMPTY_USER); setModal('create') }
-  function openEdit(user)     { setForm({ full_name: user.full_name, email: user.email, password: '', role: user.role, phone: user.phone || '', contact_info: user.contact_info || '' }); setModal(user) }
+  function openEdit(user)     { setForm({ full_name: user.full_name, email: user.email, role: user.role, phone: user.phone || '', contact_info: user.contact_info || '' }); setModal(user) }
   function closeModal()       { setModal(null) }
-  function openResetModal(u)  { setResetPw(''); setResetModal(u) }
-  function closeResetModal()  { setResetModal(null) }
+  function openInviteModal(u) { setInviteModal(u) }
+  function closeInviteModal() { setInviteModal(null) }
 
   const isEdit = modal && modal !== 'create'
 
@@ -697,16 +696,16 @@ function UsersSection() {
         setUsers(prev => prev.map(u => u.id === updated.id ? updated : u))
         flash('ok', `✓ Usuario ${updated.full_name} actualizado.`)
       } else {
+        // Crear usuario sin contraseña: el backend envía el email de invitación
         const user = await createUser({
           full_name:    form.full_name.trim(),
           email:        form.email.trim(),
-          password:     form.password,
           role:         form.role,
           phone:        form.phone.trim() || null,
           contact_info: form.contact_info.trim() || null,
         })
         setUsers(prev => [...prev, user])
-        flash('ok', `✓ Usuario ${user.full_name} creado.`)
+        flash('ok', `✓ Usuario creado. Se envió un email de invitación a ${user.email}.`)
       }
       closeModal()
     } catch (err) {
@@ -714,19 +713,15 @@ function UsersSection() {
     } finally { setSaving(false) }
   }
 
-  async function handleResetPassword(e) {
-    e.preventDefault()
-    if (!resetPw || resetPw.length < 6) {
-      flash('err', 'La contraseña debe tener al menos 6 caracteres.')
-      return
-    }
+  async function handleSendInvitation() {
+    if (!inviteModal) return
     setSaving(true)
     try {
-      await resetUserPassword(resetModal.id, resetPw)
-      flash('ok', `✓ Contraseña de ${resetModal.full_name} restablecida.`)
-      closeResetModal()
+      await sendUserInvitation(inviteModal.id)
+      flash('ok', `✓ Email de invitación enviado a ${inviteModal.email}.`)
+      closeInviteModal()
     } catch (err) {
-      flash('err', err.response?.data?.detail || 'Error al restablecer contraseña.')
+      flash('err', err.response?.data?.detail || 'Error al enviar el email.')
     } finally { setSaving(false) }
   }
 
@@ -795,7 +790,7 @@ function UsersSection() {
                     <ActionBtn onClick={() => openEdit(user)} title="Editar">✏️</ActionBtn>
                     {!user.is_superuser && (
                       <>
-                        <ActionBtn onClick={() => openResetModal(user)} title="Restablecer contraseña">🔑</ActionBtn>
+                        <ActionBtn onClick={() => openInviteModal(user)} title="Enviar/reenviar acceso por email">📧</ActionBtn>
                         <ActionBtn onClick={() => handleToggle(user)} title={user.is_active ? 'Desactivar' : 'Activar'} danger={user.is_active}>
                           {user.is_active ? '🗑' : '↩'}
                         </ActionBtn>
@@ -825,11 +820,9 @@ function UsersSection() {
                 placeholder="usuario@tixy.co" required />
             </Field>
             {!isEdit && (
-              <Field label="Contraseña">
-                <input className="input-base" type="password" value={form.password}
-                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  placeholder="Mínimo 6 caracteres" required minLength={6} />
-              </Field>
+              <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
+                📧 Al crear el usuario, se enviará automáticamente un email de invitación para que cree su contraseña.
+              </div>
             )}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rol">
@@ -859,32 +852,23 @@ function UsersSection() {
         </Modal>
       )}
 
-      {/* Modal reset de contraseña */}
-      {resetModal && (
-        <Modal title={`Restablecer contraseña — ${resetModal.full_name}`} onClose={closeResetModal}>
-          <form onSubmit={handleResetPassword}>
-            <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
-              ⚠️ Se asignará una contraseña temporal. Comunícasela al usuario de forma segura.
-            </div>
-            <Field label="Nueva contraseña temporal">
-              <input
-                className="input-base"
-                type="text"
-                value={resetPw}
-                onChange={e => setResetPw(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                required
-                minLength={6}
-                autoComplete="new-password"
-              />
-            </Field>
-            <div className="flex justify-end gap-2 mt-2">
-              <button type="button" onClick={closeResetModal} className="btn-secondary text-xs">Cancelar</button>
-              <button type="submit" disabled={saving} className="btn-primary text-xs disabled:opacity-50">
-                {saving ? 'Guardando…' : '🔑 Restablecer contraseña'}
-              </button>
-            </div>
-          </form>
+      {/* Modal de envío de acceso por email */}
+      {inviteModal && (
+        <Modal title={`Enviar acceso por email — ${inviteModal.full_name}`} onClose={closeInviteModal}>
+          <div className="mb-5 p-3 rounded-lg bg-surface border border-line text-sm text-ink-2 leading-relaxed">
+            Se enviará un email a <strong className="text-ink">{inviteModal.email}</strong> con un link
+            único para que el usuario cree o restablezca su contraseña.
+            <span className="text-xs text-ink-3 mt-1 block">
+              🔒 El link es de un solo uso y expira en 48 horas.
+            </span>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={closeInviteModal} className="btn-secondary text-xs">Cancelar</button>
+            <button onClick={handleSendInvitation} disabled={saving}
+              className="btn-primary text-xs disabled:opacity-50">
+              {saving ? 'Enviando…' : '📧 Enviar email de acceso'}
+            </button>
+          </div>
         </Modal>
       )}
     </div>

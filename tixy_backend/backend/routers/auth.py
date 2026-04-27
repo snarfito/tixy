@@ -33,6 +33,11 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class ActivateAccountRequest(BaseModel):
+    token:        str
+    new_password: str
+
+
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenOut)
@@ -180,3 +185,60 @@ def reset_password(
     db.commit()
 
     return {"message": "Contraseña actualizada correctamente. Ya puedes iniciar sesión."}
+
+
+# ── Activación de cuenta (invitación) ─────────────────────────────────────────
+
+@router.post("/activate", status_code=200)
+def activate_account(
+    payload: ActivateAccountRequest,
+    db:      Session = Depends(get_db),
+):
+    """
+    Activa una cuenta nueva o restablece contraseña desde un link de invitación.
+    - Válido para usuarios activos e inactivos (a diferencia de /reset-password).
+    - Al consumir el token, el usuario queda activo y con su nueva contraseña.
+    """
+    if len(payload.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La contraseña debe tener al menos 8 caracteres.",
+        )
+
+    # Validar que contenga al menos un número
+    if not any(c.isdigit() for c in payload.new_password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La contraseña debe contener al menos un número.",
+        )
+
+    token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
+    ahora      = datetime.now(timezone.utc)
+
+    db_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used       == False,  # noqa: E712
+        PasswordResetToken.expires_at >  ahora,
+    ).first()
+
+    if not db_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace es inválido o ya expiró. Solicita un nuevo acceso al administrador.",
+        )
+
+    user = db.query(User).filter(User.email == db_token.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace es inválido o ya expiró.",
+        )
+
+    # Activar cuenta + establecer contraseña
+    user.hashed_pw = hash_password(payload.new_password)
+    user.is_active = True
+    db_token.used  = True
+    db.commit()
+
+    return {"message": "¡Cuenta activada correctamente! Ya puedes iniciar sesión."}
+

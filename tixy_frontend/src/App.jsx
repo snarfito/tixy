@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import LoginPage          from './pages/LoginPage'
-import ResetPasswordPage  from './pages/ResetPasswordPage'
-import AdminPage          from './pages/AdminPage'
+import LoginPage            from './pages/LoginPage'
+import ResetPasswordPage    from './pages/ResetPasswordPage'
+import ActivateAccountPage  from './pages/ActivateAccountPage'
+import AdminPage            from './pages/AdminPage'
 import ManagerPage        from './pages/ManagerPage'
 import VendorPage         from './pages/VendorPage'
 import AppLayout          from './components/AppLayout'
@@ -14,6 +15,7 @@ export default function App() {
         {/* Públicas */}
         <Route path="/login"          element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/activate"       element={<ActivateAccountPage />} />
 
         {/* Protegidas — comparten layout */}
         <Route element={

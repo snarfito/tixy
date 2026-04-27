@@ -7,7 +7,8 @@ from models.user import UserRole
 class UserCreate(BaseModel):
     full_name:    str
     email:        EmailStr
-    password:     str
+    # password es opcional: si se omite, se crea cuenta inactiva y se envía invitación por email
+    password:     Optional[str] = None
     role:         UserRole = UserRole.VENDOR
     phone:        Optional[str] = None
     contact_info: Optional[str] = None  # texto libre para el PDF
