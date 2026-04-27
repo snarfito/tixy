@@ -105,7 +105,8 @@ function RefsSection() {
   useEffect(() => {
     getCollections(false).then(cols => {
       setCollections(cols)
-      if (cols.length) { setSelColId(cols[0].id); setCopyToId(cols[0].id) }
+      const defaultCol = cols.find(c => c.is_active) || cols[0]
+      if (defaultCol) { setSelColId(defaultCol.id); setCopyToId(defaultCol.id) }
     })
   }, [])
 
