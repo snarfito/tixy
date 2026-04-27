@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   getReferencesByCollection, createReference, updateReference, deleteReference,
   getCollections, createCollection, updateCollection, activateCollection, deactivateCollection,
@@ -669,8 +669,18 @@ function UsersSection() {
   const [form,       setForm]       = useState(EMPTY_USER)
   const [saving,     setSaving]     = useState(false)
   const [banner,     setBanner]     = useState(null)
+  const [filterUser, setFilterUser] = useState('')
 
   useEffect(() => { getUsers().then(setUsers) }, [])
+
+  const filteredUsers = useMemo(() => {
+    if (!filterUser.trim()) return users
+    const q = filterUser.toLowerCase()
+    return users.filter(u =>
+      u.full_name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q)
+    )
+  }, [users, filterUser])
 
   function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3500) }
   function openCreate()       { setForm(EMPTY_USER); setModal('create') }
@@ -742,7 +752,25 @@ function UsersSection() {
         </div>
       )}
 
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none">⌕</span>
+          <input
+            value={filterUser}
+            onChange={e => setFilterUser(e.target.value)}
+            placeholder="Buscar por nombre o email…"
+            className="input-base pl-8 text-sm"
+          />
+          {filterUser && (
+            <button onClick={() => setFilterUser('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink text-sm">×</button>
+          )}
+        </div>
+        <span className="text-xs text-ink-3">
+          {filteredUsers.length !== users.length
+            ? `${filteredUsers.length} de ${users.length} usuario${users.length !== 1 ? 's' : ''}`
+            : `${users.length} usuario${users.length !== 1 ? 's' : ''}`}
+        </span>
         <button onClick={openCreate} className="btn-primary text-xs px-3 py-1.5">+ Nuevo usuario</button>
       </div>
 
@@ -759,9 +787,11 @@ function UsersSection() {
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-10 text-ink-3 text-sm">No hay usuarios.</td></tr>
-            ) : users.map(user => (
+            {filteredUsers.length === 0 ? (
+              <tr><td colSpan={6} className="text-center py-10 text-ink-3 text-sm">
+                {users.length === 0 ? 'No hay usuarios registrados.' : 'Ningún usuario coincide con la búsqueda.'}
+              </td></tr>
+            ) : filteredUsers.map(user => (
               <tr key={user.id} className={`border-b border-line hover:bg-surface ${!user.is_active ? 'opacity-40' : ''}`}>
                 <td className="px-4 py-2.5 text-sm font-medium text-ink">
                   <span>{user.full_name}</span>

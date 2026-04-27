@@ -34,7 +34,7 @@ export default function App() {
             </ProtectedRoute>
           }/>
           <Route path="/pedido" element={
-            <ProtectedRoute roles={['admin','vendor']}>
+            <ProtectedRoute roles={['admin','vendor','manager']}>
               <VendorPage />
             </ProtectedRoute>
           }/>
