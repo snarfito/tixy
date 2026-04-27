@@ -228,6 +228,6 @@ def send_invitation_email(to_email: str, to_name: str, activation_link: str) -> 
     resend.Emails.send({
         "from": f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>",
         "to": [to_email],
-        "subject": "¡Tu acceso a Tixy Glamour está listo!",
+        "subject": "Tu acceso al Sistema de Pedidos - Tixy Glamour",
         "html": html_body,
     })
