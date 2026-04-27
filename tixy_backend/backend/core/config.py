@@ -11,8 +11,9 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = ""
     DB_NAME: str = "tixy"
 
-    # JWT
-    SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION"
+    # JWT — SECRET_KEY debe estar definida en el .env (local) o en Railway (producción).
+    # Genera una con: python3 -c "import secrets; print(secrets.token_hex(32))"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hrs (vendedores en campo)
 
@@ -20,9 +21,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "Tixy Glamour — Sistema de Pedidos"
     DEBUG: bool = False
 
-    # CORS — en producción pon los dominios reales separados por coma
-    # Ejemplo: "https://tixyglamour.com,https://app.tixyglamour.com"
-    ALLOWED_ORIGINS: str = "*"
+    # CORS — separados por coma. Local: solo localhost. Producción: dominio real en Railway.
+    # Ejemplo producción: "https://app.tixyglamour.com"
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
 
     # Email (Resend) — configura en Railway
     RESEND_API_KEY: str = "re_CONFIGURA_EN_RAILWAY"

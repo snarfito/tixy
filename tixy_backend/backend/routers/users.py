@@ -148,6 +148,24 @@ def send_user_invitation(
     return {"message": f"Email de invitación enviado a {user.email}"}
 
 
+@router.patch("/{user_id}/reset-password", status_code=200)
+def reset_user_password(
+    user_id: int,
+    payload: PasswordReset,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Admin asigna una nueva contraseña directamente a cualquier usuario."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=422, detail="La contraseña debe tener al menos 8 caracteres")
+    user.hashed_pw = hash_password(payload.new_password)
+    db.commit()
+    return {"message": f"Contraseña actualizada para {user.email}"}
+
+
 @router.patch("/{user_id}", response_model=UserOut)
 def update_user(
     user_id: int,

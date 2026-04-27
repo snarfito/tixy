@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from models.order import OrderStatus
 from schemas.reference import ReferenceOut
 from schemas.user import UserOut
@@ -12,6 +12,20 @@ class OrderLineCreate(BaseModel):
     reference_id: int
     quantity:     int
     unit_price:   float
+
+    @field_validator("quantity")
+    @classmethod
+    def quantity_debe_ser_positiva(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("La cantidad debe ser mayor a 0")
+        return v
+
+    @field_validator("unit_price")
+    @classmethod
+    def precio_no_puede_ser_negativo(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("El precio unitario no puede ser negativo")
+        return v
 
 
 class OrderLineOut(BaseModel):
@@ -30,6 +44,13 @@ class OrderCreate(BaseModel):
     collection_id: int
     notes:         Optional[str] = None
     lines:         list[OrderLineCreate]
+
+    @field_validator("lines")
+    @classmethod
+    def pedido_requiere_al_menos_una_linea(cls, v: list) -> list:
+        if not v:
+            raise ValueError("El pedido debe tener al menos una línea")
+        return v
 
 
 class OrderUpdate(BaseModel):

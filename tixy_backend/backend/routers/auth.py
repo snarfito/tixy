@@ -15,7 +15,7 @@ from core.deps import get_current_user
 from core.email import send_password_reset_email
 from core.security import create_access_token, hash_password, verify_password
 from models.password_reset import PasswordResetToken
-from models.user import User
+from models.user import User, UserRole
 from schemas.user import TokenOut, UserCreate, UserOut
 
 router   = APIRouter(prefix="/auth", tags=["auth"])
@@ -69,11 +69,16 @@ def register_first_admin(payload: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Registro público deshabilitado. Usa el panel de administración.",
         )
+    if not payload.password:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La contraseña es obligatoria para el primer administrador.",
+        )
     user = User(
         full_name=payload.full_name,
         email=payload.email,
         hashed_pw=hash_password(payload.password),
-        role=payload.role,
+        role=UserRole.ADMIN,  # siempre admin, ignoramos payload.role
         phone=payload.phone,
         contact_info=payload.contact_info,
     )
