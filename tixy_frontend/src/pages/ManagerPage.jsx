@@ -444,6 +444,35 @@ export default function ManagerPage() {
   const [fCity,     setFCity]     = useState('')
   const [fVendor,   setFVendor]   = useState('')
   const [fCategory, setFCategory] = useState('')   // filtro de categoría en reportes
+  const [fPeriod,   setFPeriod]   = useState('')   // 'hoy' | 'semana' | 'mes' | 'anio' | 'custom' | ''
+  const [fDateFrom, setFDateFrom] = useState('')
+  const [fDateTo,   setFDateTo]   = useState('')
+
+  // Calcula las fechas según el período seleccionado
+  function getDateParams() {
+    const toISO = d => d.toISOString().slice(0, 10)
+    const hoy   = new Date()
+    if (fPeriod === 'hoy') {
+      const d = toISO(hoy)
+      return { date_from: d, date_to: d }
+    }
+    if (fPeriod === 'semana') {
+      const dow = hoy.getDay() || 7           // domingo = 0 → 7
+      const lun = new Date(hoy)
+      lun.setDate(hoy.getDate() - dow + 1)
+      return { date_from: toISO(lun), date_to: toISO(hoy) }
+    }
+    if (fPeriod === 'mes') {
+      return { date_from: toISO(new Date(hoy.getFullYear(), hoy.getMonth(), 1)), date_to: toISO(hoy) }
+    }
+    if (fPeriod === 'anio') {
+      return { date_from: toISO(new Date(hoy.getFullYear(), 0, 1)), date_to: toISO(hoy) }
+    }
+    if (fPeriod === 'custom') {
+      return { date_from: fDateFrom || undefined, date_to: fDateTo || undefined }
+    }
+    return {}  // sin filtro de fecha
+  }
 
   // carga inicial
   useEffect(() => {
@@ -459,13 +488,15 @@ export default function ManagerPage() {
   // carga de pedidos y reportes cuando cambian los filtros
   const loadData = useCallback(() => {
     setLoading(true)
-    const params = {}
+    const dateParams = getDateParams()
+
+    const params = { ...dateParams }
     if (fCol)    params.collection_id = fCol
     if (fStatus) params.status        = fStatus
     if (fCity)   params.city          = fCity
     if (fVendor) params.vendor_id     = fVendor
 
-    const reportParams = {}
+    const reportParams = { ...dateParams }
     if (fCol)      reportParams.collection_id = fCol
     if (fVendor)   reportParams.vendor_id     = fVendor
     if (fCategory) reportParams.category      = fCategory
@@ -473,7 +504,7 @@ export default function ManagerPage() {
     Promise.all([
       listOrders(params),
       salesByReference(reportParams),
-      salesByVendor({ collection_id: fCol || undefined }),
+      salesByVendor({ ...dateParams, collection_id: fCol || undefined }),
     ])
       .then(([ords, refs, vends]) => {
         setOrders(ords)
@@ -481,7 +512,8 @@ export default function ManagerPage() {
         setVendorSales(vends)
       })
       .finally(() => setLoading(false))
-  }, [fCol, fStatus, fCity, fVendor, fCategory])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fCol, fStatus, fCity, fVendor, fCategory, fPeriod, fDateFrom, fDateTo])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -586,6 +618,36 @@ export default function ManagerPage() {
       {/* ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'pedidos' && (
         <>
+          {/* ── Selector de período ── */}
+          <div className="flex flex-wrap gap-1.5 mb-3 items-center">
+            <span className="text-xs text-ink-3 font-medium mr-1">Período:</span>
+            {[
+              { id: '',       label: 'Todos' },
+              { id: 'hoy',    label: 'Hoy' },
+              { id: 'semana', label: 'Esta semana' },
+              { id: 'mes',    label: 'Este mes' },
+              { id: 'anio',   label: 'Este año' },
+              { id: 'custom', label: '📅 Personalizado' },
+            ].map(p => (
+              <button key={p.id} onClick={() => setFPeriod(p.id)}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors
+                  ${ fPeriod === p.id
+                    ? 'bg-pink text-white border-pink'
+                    : 'bg-white text-ink-3 border-line hover:text-ink hover:border-ink-3' }`}>
+                {p.label}
+              </button>
+            ))}
+            {fPeriod === 'custom' && (
+              <div className="flex items-center gap-1.5 ml-1">
+                <input type="date" value={fDateFrom} onChange={e => setFDateFrom(e.target.value)}
+                  className="input-base text-xs py-1.5 w-36" />
+                <span className="text-xs text-ink-3">→</span>
+                <input type="date" value={fDateTo} onChange={e => setFDateTo(e.target.value)}
+                  className="input-base text-xs py-1.5 w-36" />
+              </div>
+            )}
+          </div>
+
           {/* ── Filtros ── */}
           <div className="flex flex-col sm:flex-row gap-2 flex-wrap mb-4 sm:items-center">
             <span className="text-xs text-ink-3 font-medium hidden sm:block">Filtrar:</span>
@@ -620,8 +682,8 @@ export default function ManagerPage() {
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
-            {(fCol || fStatus || fCity || fVendor || fCategory) && (
-              <button onClick={() => { setFCol(''); setFStatus(''); setFCity(''); setFVendor(''); setFCategory('') }}
+            {(fCol || fStatus || fCity || fVendor || fCategory || fPeriod) && (
+              <button onClick={() => { setFCol(''); setFStatus(''); setFCity(''); setFVendor(''); setFCategory(''); setFPeriod(''); setFDateFrom(''); setFDateTo('') }}
                 className="text-xs text-pink-dark hover:underline">
                 × Limpiar filtros
               </button>

@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import func, cast, Date
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import get_db
@@ -45,10 +45,12 @@ def _next_order_number(db: Session) -> str:
 
 @router.get("/", response_model=list[OrderSummary])
 def list_orders(
-    vendor_id:     Optional[int] = None,
-    collection_id: Optional[int] = None,
+    vendor_id:     Optional[int]         = None,
+    collection_id: Optional[int]         = None,
     status:        Optional[OrderStatus] = None,
-    city:          Optional[str] = None,
+    city:          Optional[str]         = None,
+    date_from:     Optional[date]        = None,
+    date_to:       Optional[date]        = None,
     db:  Session = Depends(get_db),
     me:  User    = Depends(get_current_user),
 ):
@@ -72,6 +74,10 @@ def list_orders(
         from models.client import Store
         store_ids = db.query(Store.id).filter(Store.city.ilike(f"%{city}%")).subquery()
         q = q.filter(Order.store_id.in_(store_ids))
+    if date_from:
+        q = q.filter(cast(Order.created_at, Date) >= date_from)
+    if date_to:
+        q = q.filter(cast(Order.created_at, Date) <= date_to)
 
     return q.order_by(Order.created_at.desc()).all()
 
@@ -226,15 +232,17 @@ def cancel_order(
 
 @router.get("/summary/by-reference", tags=["reports"])
 def sales_by_reference(
-    collection_id: Optional[int] = None,
-    vendor_id:     Optional[int] = None,
-    category:      Optional[str] = None,
+    collection_id: Optional[int]  = None,
+    vendor_id:     Optional[int]  = None,
+    category:      Optional[str]  = None,
+    date_from:     Optional[date] = None,
+    date_to:       Optional[date] = None,
     db: Session = Depends(get_db),
     _:  User    = Depends(require_manager),
 ):
     """
     Retorna ventas agrupadas por referencia.
-    Filtra opcionalmente por colección, vendedor y categoría.
+    Filtra opcionalmente por colección, vendedor, categoría y rango de fechas.
     """
     from models.reference import Reference
     q = (
@@ -255,6 +263,10 @@ def sales_by_reference(
         q = q.filter(Order.vendor_id == vendor_id)
     if category:
         q = q.filter(Reference.category == category)
+    if date_from:
+        q = q.filter(cast(Order.created_at, Date) >= date_from)
+    if date_to:
+        q = q.filter(cast(Order.created_at, Date) <= date_to)
 
     rows = q.group_by(Reference.id).order_by(func.sum(OrderLine.quantity).desc()).all()
     return [
@@ -348,11 +360,13 @@ def sales_by_collection(
 
 @router.get("/summary/by-vendor", tags=["reports"])
 def sales_by_vendor(
-    collection_id: Optional[int] = None,
+    collection_id: Optional[int]  = None,
+    date_from:     Optional[date] = None,
+    date_to:       Optional[date] = None,
     db: Session = Depends(get_db),
     _:  User    = Depends(require_manager),
 ):
-    """Ventas totales por vendedor en una colección."""
+    """Ventas totales por vendedor. Filtra opcionalmente por colección y rango de fechas."""
     q = (
         db.query(
             User.id,
@@ -367,6 +381,10 @@ def sales_by_vendor(
     )
     if collection_id:
         q = q.filter(Order.collection_id == collection_id)
+    if date_from:
+        q = q.filter(cast(Order.created_at, Date) >= date_from)
+    if date_to:
+        q = q.filter(cast(Order.created_at, Date) <= date_to)
 
     rows = q.group_by(User.id).all()
     return [
