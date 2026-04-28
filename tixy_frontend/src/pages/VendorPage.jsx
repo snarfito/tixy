@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { getReferences, getCollections, searchClients, createClient, createOrder, sendOrder, downloadPdfVendor, listOrders, getOrder, updateOrder } from '../api/orders'
+import { getReferences, getCollections, searchClients, createClient, createOrder, sendOrder, downloadPdfVendor, listOrders, getOrder, updateOrder, sendOrderToClient } from '../api/orders'
 import fmt from '../utils/fmt'
 
 function today() {
@@ -60,6 +60,10 @@ export default function VendorPage() {
   const [lastOrderId, setLastOrderId] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const [successOrder, setSuccessOrder] = useState(null)  // pantalla de éxito post-envío
+  const [emailInput,   setEmailInput]   = useState('')
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailSent,    setEmailSent]    = useState(false)
+  const [emailError,   setEmailError]   = useState(null)
 
   // ── Tab activo y mis pedidos ───────────────────────────────────────────
   const [activeTab,    setActiveTab]    = useState('form')   // 'form' | 'my_orders'
@@ -301,7 +305,13 @@ export default function VendorPage() {
       }
 
       await sendOrder(orderId)
+      // Obtener la orden completa para acceder al email del cliente
+      const fullOrder = await getOrder(orderId)
+      const clientEmail = fullOrder.store?.client?.email || ''
       setLastOrderId(orderId)
+      setEmailInput(clientEmail)
+      setEmailSent(false)
+      setEmailError(null)
       setSuccessOrder({
         id:           orderId,
         order_number: orderNumber,
@@ -346,6 +356,21 @@ export default function VendorPage() {
     finally { setDownloading(false) }
   }
 
+  async function handleSendEmail() {
+    if (!emailInput.trim() || !successOrder) return
+    setEmailSending(true)
+    setEmailError(null)
+    setEmailSent(false)
+    try {
+      await sendOrderToClient(successOrder.id, emailInput.trim())
+      setEmailSent(true)
+    } catch (err) {
+      setEmailError(err.response?.data?.detail || 'Error al enviar el correo.')
+    } finally {
+      setEmailSending(false)
+    }
+  }
+
   function handleClear() {
     setLines([])
     setClientName(''); setStoreName(''); setAddress('')
@@ -357,6 +382,9 @@ export default function VendorPage() {
   function startNewOrder() {
     setSuccessOrder(null)
     setLastOrderId(null)
+    setEmailInput('')
+    setEmailSent(false)
+    setEmailError(null)
     setLines([])
     setClientName(''); setStoreName(''); setAddress('')
     setNit(''); setTel(''); setCel('')
@@ -424,6 +452,37 @@ export default function VendorPage() {
                 className="btn-primary justify-center py-3 sm:py-2 text-sm disabled:opacity-50">
                 {downloading ? 'Generando…' : '📄 Ver PDF'}
               </button>
+            </div>
+
+            {/* Enviar por correo al cliente */}
+            <div className="w-full max-w-sm mb-6">
+              <div className="border border-line rounded-xl p-4 bg-surface">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-3">
+                  📧 Enviar orden al cliente
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={e => { setEmailInput(e.target.value); setEmailSent(false); setEmailError(null) }}
+                    placeholder="correo@cliente.com"
+                    className="input-base text-sm flex-1"
+                    disabled={emailSending}
+                  />
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={emailSending || !emailInput.trim()}
+                    className="btn-primary text-sm px-4 disabled:opacity-50 shrink-0">
+                    {emailSending ? '…' : 'Enviar'}
+                  </button>
+                </div>
+                {emailSent && (
+                  <p className="text-xs text-green-600 mt-2">✓ Correo enviado correctamente.</p>
+                )}
+                {emailError && (
+                  <p className="text-xs text-red-500 mt-2">{emailError}</p>
+                )}
+              </div>
             </div>
 
             {/* Separador */}

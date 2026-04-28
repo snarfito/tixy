@@ -39,3 +39,6 @@ export const getOrder = (orderId) =>
 
 export const updateOrder = (orderId, payload) =>
   api.patch(`/orders/${orderId}`, payload).then(r => r.data)
+
+export const sendOrderToClient = (orderId, email) =>
+  api.post(`/orders/${orderId}/send-to-client`, { email }).then(r => r.data)

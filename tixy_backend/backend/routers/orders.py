@@ -12,6 +12,11 @@ from models.reference import Reference
 from models.user import User, UserRole
 from schemas.order import OrderCreate, OrderOut, OrderSummary, OrderUpdate
 
+from pydantic import BaseModel, EmailStr
+
+class SendToClientPayload(BaseModel):
+    email: EmailStr
+
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
@@ -226,6 +231,50 @@ def cancel_order(
     order.status = OrderStatus.CANCELLED
     db.commit()
     return _load_order(db, order_id)
+
+
+# ── Enviar PDF al cliente por email ──────────────────────────────────────────
+
+@router.post("/{order_id}/send-to-client", status_code=200)
+def send_order_to_client(
+    order_id: int,
+    payload:  SendToClientPayload,
+    db: Session = Depends(get_db),
+    me: User    = Depends(require_vendor),
+):
+    """Genera el PDF de la orden y lo envía por email al cliente."""
+    from routers.pdf import _build_pdf
+    from core.email import send_order_pdf_email
+    from models.client import Store
+
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.lines).joinedload(OrderLine.reference),
+            joinedload(Order.vendor),
+            joinedload(Order.store).joinedload(Store.client),
+        )
+        .filter(Order.id == order_id)
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    if me.role == UserRole.VENDOR and order.vendor_id != me.id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
+    try:
+        pdf_bytes = _build_pdf(order, show_total=False)
+        client_name = order.store.client.business_name if order.store and order.store.client else ""
+        send_order_pdf_email(
+            to_email=payload.email,
+            client_name=client_name,
+            order_number=order.order_number,
+            pdf_bytes=pdf_bytes,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar el correo: {str(e)}")
+
+    return {"ok": True, "detail": f"Orden #{order.order_number} enviada a {payload.email}"}
 
 
 # ── Sales summary (gerencia) ─────────────────────────────────────────────────

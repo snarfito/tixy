@@ -117,6 +117,94 @@ def send_password_reset_email(to_email: str, to_name: str, reset_link: str) -> N
     })
 
 
+def send_order_pdf_email(to_email: str, client_name: str, order_number: str, pdf_bytes: bytes) -> None:
+    """
+    Envía la orden de pedido en PDF al correo del cliente.
+    """
+    import base64
+    nombre = client_name.split()[0] if client_name else "Cliente"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;background:#1A0D14;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#1A0D14;padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="520" cellpadding="0" cellspacing="0"
+                   style="background:#2a1220;border:1px solid #5a1535;border-radius:16px;overflow:hidden;">
+
+              <!-- Encabezado -->
+              <tr>
+                <td align="center" style="padding:32px 40px 24px;background:#1A0D14;
+                           border-bottom:1px solid #5a1535;">
+                  <span style="font-size:22px;font-weight:700;letter-spacing:6px;
+                               text-transform:uppercase;color:#C0206A;">TIXY</span>
+                  <span style="font-size:22px;font-weight:300;letter-spacing:6px;
+                               text-transform:uppercase;color:#ffffff66;"> GLAMOUR</span>
+                  <div style="margin-top:6px;font-size:10px;letter-spacing:4px;
+                              text-transform:uppercase;color:#ffffff30;">
+                    Sistema de Pedidos
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Cuerpo -->
+              <tr>
+                <td style="padding:36px 40px;">
+                  <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#ffffff;">
+                    Hola, {nombre} 👋
+                  </p>
+                  <p style="margin:0 0 24px;font-size:14px;color:#ffffff99;line-height:1.6;">
+                    Adjunto encontrarás la orden de pedido <strong style="color:#FAE0EE;">#{order_number}</strong>
+                    de <strong style="color:#FAE0EE;">Tixy Glamour</strong>.
+                    Por favor revísala y contáctanos si tienes alguna pregunta.
+                  </p>
+
+                  <div style="padding:16px;background:#1A0D14;border-radius:8px;border:1px solid #5a1535;">
+                    <p style="margin:0;font-size:12px;color:#ffffff50;line-height:1.6;">
+                      📧 Este correo fue enviado automáticamente desde el sistema de pedidos de Tixy Glamour.
+                      Para consultas, comunícate con tu vendedor directamente.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Pie -->
+              <tr>
+                <td align="center"
+                    style="padding:20px 40px;border-top:1px solid #5a1535;
+                           font-size:11px;color:#ffffff25;letter-spacing:2px;">
+                  TIXY GLAMOUR © 2026 — Este es un mensaje automático.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+    """
+
+    pdf_b64 = base64.b64encode(pdf_bytes).decode()
+
+    resend.Emails.send({
+        "from": f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>",
+        "to": [to_email],
+        "subject": f"Orden de Pedido #{order_number} — Tixy Glamour",
+        "html": html_body,
+        "attachments": [{
+            "filename": f"tixy-orden-{order_number}.pdf",
+            "content":  pdf_b64,
+        }],
+    })
+
+
 def send_invitation_email(to_email: str, to_name: str, activation_link: str) -> None:
     """
     Envía el correo de bienvenida / invitación a un nuevo usuario.
