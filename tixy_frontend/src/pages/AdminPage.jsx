@@ -4,6 +4,7 @@ import {
   getCollections, createCollection, updateCollection, activateCollection, deactivateCollection,
   getUsers, createUser, updateUser, sendUserInvitation, copyReferences, bulkUpdateReferences,
   listClients, createClient, updateClient, addStore, updateStore,
+  inactivateClient, activateClient, inactivateStore, activateStore,
 } from '../api/admin'
 import fmt from '../utils/fmt'
 
@@ -914,7 +915,7 @@ const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira
 const EMPTY_CLIENT = { business_name: '', nit: '', phone: '', email: '', notes: '' }
 const EMPTY_STORE  = { name: '', address: '', city: 'Bogotá', phone: '', contact: '' }
 
-function StoresPanel({ client, onStoreUpdated, flash }) {
+function StoresPanel({ client, onStoreUpdated, onStoreInactivated, onStoreActivated, flash }) {
   const [addingStore, setAddingStore] = useState(false)
   const [editStore,   setEditStore]   = useState(null)
   const [form,        setForm]        = useState(EMPTY_STORE)
@@ -959,21 +960,33 @@ function StoresPanel({ client, onStoreUpdated, flash }) {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="border-y border-line bg-white">
-                {['Nombre', 'Ciudad', 'Dirección', 'Teléfono', 'Contacto', ''].map(h => (
+                {['Nombre', 'Ciudad', 'Dirección', 'Teléfono', 'Contacto', 'Estado', ''].map(h => (
                   <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {client.stores.map(store => (
-                <tr key={store.id} className="border-b border-line hover:bg-white transition-colors">
+                <tr key={store.id} className={`border-b border-line hover:bg-white transition-colors ${!store.is_active ? 'opacity-40' : ''}`}>
                   <td className="px-4 py-2 font-medium text-ink">{store.name}</td>
                   <td className="px-4 py-2 text-ink-2">{store.city || '—'}</td>
                   <td className="px-4 py-2 text-ink-3 max-w-[200px] truncate">{store.address || '—'}</td>
                   <td className="px-4 py-2 text-ink-3">{store.phone || '—'}</td>
                   <td className="px-4 py-2 text-ink-3">{store.contact || '—'}</td>
+                  <td className="px-4 py-2 text-center">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium
+                      ${store.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {store.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">
-                    <ActionBtn onClick={() => openEdit(store)} title="Editar almacén">✏️</ActionBtn>
+                    <div className="flex items-center gap-1">
+                      <ActionBtn onClick={() => openEdit(store)} title="Editar almacén">✏️</ActionBtn>
+                      {store.is_active
+                        ? <ActionBtn onClick={() => onStoreInactivated(store)} title="Inactivar almacén" danger>🗑</ActionBtn>
+                        : <ActionBtn onClick={() => onStoreActivated(store)} title="Reactivar almacén">↩</ActionBtn>
+                      }
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1032,14 +1045,17 @@ function StoresPanel({ client, onStoreUpdated, flash }) {
   )
 }
 
-function ClientRow({ client, onEdit, onStoreUpdated, flash }) {
+function ClientRow({ client, onEdit, onInactivate, onActivate, onStoreUpdated, onStoreInactivated, onStoreActivated, selected, onToggle, flash }) {
   const [expanded, setExpanded] = useState(false)
   return (
     <>
-      <tr className="border-b border-line hover:bg-surface transition-colors cursor-pointer"
+      <tr className={`border-b border-line hover:bg-surface transition-colors cursor-pointer
+        ${!client.is_active ? 'opacity-50' : ''}
+        ${selected ? 'bg-pink-light/60' : ''}`}
         onClick={() => setExpanded(e => !e)}>
-        <td className="px-4 py-3">
-          <span className={`text-xs transition-transform inline-block ${expanded ? 'rotate-90' : ''}`}>▶</span>
+        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+          <input type="checkbox" checked={selected} onChange={() => onToggle(client.id)}
+            className="accent-pink-dark cursor-pointer" />
         </td>
         <td className="px-4 py-3">
           <div className="text-sm font-semibold text-ink">{client.business_name}</div>
@@ -1049,18 +1065,31 @@ function ClientRow({ client, onEdit, onStoreUpdated, flash }) {
         <td className="px-4 py-3 text-xs text-ink-3">{client.phone || '—'}</td>
         <td className="px-4 py-3 text-xs text-ink-3">{client.email || '—'}</td>
         <td className="px-4 py-3 text-center">
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium
+            ${client.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+            {client.is_active ? 'Activo' : 'Inactivo'}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-center">
           <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-pink-light text-pink-dark">
             {client.stores.length} almacén{client.stores.length !== 1 ? 'es' : ''}
           </span>
         </td>
         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-          <ActionBtn onClick={() => onEdit(client)} title="Editar cliente">✏️</ActionBtn>
+          <div className="flex items-center justify-center gap-1">
+            <ActionBtn onClick={() => onEdit(client)} title="Editar cliente">✏️</ActionBtn>
+            {client.is_active
+              ? <ActionBtn onClick={() => onInactivate(client)} title="Inactivar cliente" danger>🗑</ActionBtn>
+              : <ActionBtn onClick={() => onActivate(client)} title="Reactivar cliente">↩</ActionBtn>
+            }
+          </div>
         </td>
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} className="p-0">
-            <StoresPanel client={client} onStoreUpdated={onStoreUpdated} flash={flash} />
+          <td colSpan={8} className="p-0">
+            <StoresPanel client={client} onStoreUpdated={onStoreUpdated}
+              onStoreInactivated={onStoreInactivated} onStoreActivated={onStoreActivated} flash={flash} />
           </td>
         </tr>
       )}
@@ -1069,23 +1098,27 @@ function ClientRow({ client, onEdit, onStoreUpdated, flash }) {
 }
 
 function ClientsSection() {
-  const [clients,  setClients]  = useState([])
-  const [search,   setSearch]   = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [modal,    setModal]    = useState(null)
-  const [form,     setForm]     = useState(EMPTY_CLIENT)
-  const [saving,   setSaving]   = useState(false)
-  const [banner,   setBanner]   = useState(null)
+  const [clients,         setClients]         = useState([])
+  const [search,          setSearch]          = useState('')
+  const [showInactive,    setShowInactive]    = useState(false)
+  const [loading,         setLoading]         = useState(false)
+  const [modal,           setModal]           = useState(null)
+  const [form,            setForm]            = useState(EMPTY_CLIENT)
+  const [saving,          setSaving]          = useState(false)
+  const [banner,          setBanner]          = useState(null)
+  const [selected,        setSelected]        = useState(new Set())
+  const [bulkAction,      setBulkAction]      = useState('')
+  const [bulkLoading,     setBulkLoading]     = useState(false)
 
   function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3500) }
 
   useEffect(() => {
     setLoading(true)
     const t = setTimeout(() => {
-      listClients(search).then(setClients).finally(() => setLoading(false))
+      listClients(search, showInactive).then(setClients).finally(() => setLoading(false))
     }, search ? 300 : 0)
     return () => clearTimeout(t)
-  }, [search])
+  }, [search, showInactive])
 
   function openCreate()  { setForm(EMPTY_CLIENT); setModal('create') }
   function openEdit(c)   { setForm({ business_name: c.business_name, nit: c.nit || '', phone: c.phone || '', email: c.email || '', notes: c.notes || '' }); setModal(c) }
@@ -1119,6 +1152,58 @@ function ClientsSection() {
     } finally { setSaving(false) }
   }
 
+  async function handleInactivateClient(client) {
+    if (!confirm(`¿Inactivar el cliente "${client.business_name}"? También se inactivarán todos sus almacenes.`)) return
+    try {
+      await inactivateClient(client.id)
+      setClients(prev => prev.map(c => c.id === client.id
+        ? { ...c, is_active: false, stores: c.stores.map(s => ({ ...s, is_active: false })) }
+        : c))
+      flash('ok', `Cliente "${client.business_name}" inactivado.`)
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al inactivar.')
+    }
+  }
+
+  async function handleInactivateStore(store) {
+    if (!confirm(`¿Inactivar el almacén "${store.name}"?`)) return
+    try {
+      await inactivateStore(store.id)
+      setClients(prev => prev.map(c => ({
+        ...c,
+        stores: c.stores.map(s => s.id === store.id ? { ...s, is_active: false } : s),
+      })))
+      flash('ok', `Almacén "${store.name}" inactivado.`)
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al inactivar almacén.')
+    }
+  }
+
+  async function handleActivateClient(client) {
+    try {
+      await activateClient(client.id)
+      setClients(prev => prev.map(c => c.id === client.id
+        ? { ...c, is_active: true, stores: c.stores.map(s => ({ ...s, is_active: true })) }
+        : c))
+      flash('ok', `Cliente "${client.business_name}" reactivado.`)
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al reactivar.')
+    }
+  }
+
+  async function handleActivateStore(store) {
+    try {
+      await activateStore(store.id)
+      setClients(prev => prev.map(c => ({
+        ...c,
+        stores: c.stores.map(s => s.id === store.id ? { ...s, is_active: true } : s),
+      })))
+      flash('ok', `Almacén "${store.name}" reactivado.`)
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al reactivar almacén.')
+    }
+  }
+
   function handleStoreUpdated(clientId, store, action) {
     setClients(prev => prev.map(c => {
       if (c.id !== clientId) return c
@@ -1126,6 +1211,55 @@ function ClientsSection() {
       if (action === 'edit') return { ...c, stores: c.stores.map(s => s.id === store.id ? store : s) }
       return c
     }))
+  }
+
+  const allSelected = clients.length > 0 && clients.every(c => selected.has(c.id))
+
+  function toggleOne(id) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (allSelected) {
+        clients.forEach(c => next.delete(c.id))
+      } else {
+        clients.forEach(c => next.add(c.id))
+      }
+      return next
+    })
+  }
+
+  async function handleBulkAction() {
+    if (!selected.size || !bulkAction) return
+    setBulkLoading(true)
+    try {
+      const ids = [...selected]
+      if (bulkAction === 'activate') {
+        await Promise.all(ids.map(id => activateClient(id)))
+        setClients(prev => prev.map(c => ids.includes(c.id)
+          ? { ...c, is_active: true, stores: c.stores.map(s => ({ ...s, is_active: true })) }
+          : c))
+        flash('ok', `✓ ${ids.length} cliente${ids.length !== 1 ? 's' : ''} reactivado${ids.length !== 1 ? 's' : ''}.`)
+      } else {
+        await Promise.all(ids.map(id => inactivateClient(id)))
+        setClients(prev => prev.map(c => ids.includes(c.id)
+          ? { ...c, is_active: false, stores: c.stores.map(s => ({ ...s, is_active: false })) }
+          : c))
+        flash('ok', `✓ ${ids.length} cliente${ids.length !== 1 ? 's' : ''} inactivado${ids.length !== 1 ? 's' : ''}.`)
+      }
+      setSelected(new Set())
+      setBulkAction('')
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error en acción masiva.')
+    } finally {
+      setBulkLoading(false)
+    }
   }
 
   return (
@@ -1148,32 +1282,71 @@ function ClientsSection() {
           )}
         </div>
         <span className="text-xs text-ink-3">{clients.length} cliente{clients.length !== 1 ? 's' : ''}</span>
+        <label className="flex items-center gap-1.5 text-xs text-ink-3 cursor-pointer select-none">
+          <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
+            className="accent-pink-dark" />
+          Ver inactivos
+        </label>
         <button onClick={openCreate} className="btn-primary text-xs px-3 py-1.5">+ Nuevo cliente</button>
       </div>
 
       <div className="rounded-xl border border-line overflow-hidden">
+        {selected.size > 0 && (
+          <div className="px-4 py-3 border-b border-pink/30 bg-pink-light flex flex-wrap gap-2 items-center">
+            <span className="text-xs font-semibold text-pink-dark shrink-0">
+              {selected.size} seleccionado{selected.size !== 1 ? 's' : ''}
+            </span>
+            <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
+              className="input-base w-auto text-xs py-1.5">
+              <option value="">— Acción masiva —</option>
+              <option value="activate">↩ Activar</option>
+              <option value="deactivate">🗑 Inactivar</option>
+            </select>
+            <button onClick={handleBulkAction} disabled={bulkLoading || !bulkAction}
+              className="btn-primary text-xs py-1.5 px-4 disabled:opacity-50 shrink-0">
+              {bulkLoading ? 'Aplicando…' : 'Aplicar'}
+            </button>
+            <button onClick={() => { setSelected(new Set()); setBulkAction('') }}
+              className="text-xs text-ink-3 hover:text-ink-2 ml-1">
+              × Cancelar selección
+            </button>
+          </div>
+        )}
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-pink-light border-b border-line">
-              <th className="w-8" />
+              <th className="px-3 py-2.5 w-9">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                  disabled={clients.length === 0}
+                  title={allSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                  className="accent-pink-dark cursor-pointer" />
+              </th>
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Razón social</th>
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">NIT / Cédula</th>
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Teléfono</th>
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Email</th>
+              <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Estado</th>
               <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Almacenes</th>
-              <th className="px-4 py-2.5 w-12" />
+              <th className="px-4 py-2.5 w-16" />
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-10 text-ink-3 text-sm">Cargando…</td></tr>
+              <tr><td colSpan={8} className="text-center py-10 text-ink-3 text-sm">Cargando…</td></tr>
             ) : clients.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-10 text-ink-3 text-sm">
+              <tr><td colSpan={8} className="text-center py-10 text-ink-3 text-sm">
                 {search ? 'Ningún cliente coincide con la búsqueda.' : 'No hay clientes registrados aún.'}
               </td></tr>
             ) : clients.map(client => (
               <ClientRow key={client.id} client={client} onEdit={openEdit}
-                onStoreUpdated={handleStoreUpdated} flash={flash} />
+                onInactivate={handleInactivateClient}
+                onActivate={handleActivateClient}
+                onStoreUpdated={handleStoreUpdated}
+                onStoreInactivated={handleInactivateStore}
+                onStoreActivated={handleActivateStore}
+                selected={selected.has(client.id)}
+                onToggle={toggleOne}
+                flash={flash} />
             ))}
           </tbody>
         </table>

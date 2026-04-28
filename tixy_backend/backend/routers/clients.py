@@ -17,10 +17,13 @@ router = APIRouter(prefix="/clients", tags=["clients"])
 @router.get("/", response_model=list[ClientOut])
 def list_clients(
     search: Optional[str] = Query(None, description="Busca por razón social o NIT"),
+    include_inactive: bool = Query(False, description="Incluir clientes inactivos (solo admin)"),
     db: Session = Depends(get_db),
     _:  User    = Depends(require_vendor),
 ):
     q = db.query(Client).options(joinedload(Client.stores))
+    if not include_inactive:
+        q = q.filter(Client.is_active == True)  # noqa: E712
     if search:
         like = f"%{search}%"
         q = q.filter(
@@ -132,3 +135,71 @@ def update_store(
     db.commit()
     db.refresh(store)
     return store
+
+
+# ── Inactivación (solo admin) ─────────────────────────────────────────────────
+
+@router.delete("/{client_id}", status_code=200)
+def inactivate_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+    """Inactiva un cliente y todos sus almacenes. Solo admins."""
+    client = db.get(Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    client.is_active = False
+    for store in client.stores:
+        store.is_active = False
+    db.commit()
+    return {"ok": True, "detail": f"Cliente '{client.business_name}' inactivado."}
+
+
+@router.delete("/stores/{store_id}", status_code=200)
+def inactivate_store(
+    store_id: int,
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+    """Inactiva un almacén individual. Solo admins."""
+    store = db.get(Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Almacén no encontrado")
+    store.is_active = False
+    db.commit()
+    return {"ok": True, "detail": f"Almacén '{store.name}' inactivado."}
+
+
+# ── Reactivación (solo admin) ────────────────────────────────────────────
+
+@router.patch("/{client_id}/activate", status_code=200)
+def activate_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+    """Reactiva un cliente. Solo admins."""
+    client = db.get(Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    client.is_active = True
+    for store in client.stores:
+        store.is_active = True
+    db.commit()
+    return {"ok": True, "detail": f"Cliente '{client.business_name}' reactivado."}
+
+
+@router.patch("/stores/{store_id}/activate", status_code=200)
+def activate_store(
+    store_id: int,
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_admin),
+):
+    """Reactiva un almacén individual. Solo admins."""
+    store = db.get(Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Almacén no encontrado")
+    store.is_active = True
+    db.commit()
+    return {"ok": True, "detail": f"Almacén '{store.name}' reactivado."}

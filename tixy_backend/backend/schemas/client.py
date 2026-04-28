@@ -44,6 +44,7 @@ class StoreOut(BaseModel):
     phone:     Optional[str]
     contact:   Optional[str]
     client_id: int
+    is_active: bool = True
 
 
 class ClientCreate(BaseModel):
@@ -71,4 +72,5 @@ class ClientOut(BaseModel):
     nit:           Optional[str]
     phone:         Optional[str]
     email:         Optional[str]
+    is_active:     bool = True
     stores:        list[StoreOut] = []

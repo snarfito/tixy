@@ -63,8 +63,8 @@ export const updateUser = (id, payload) =>
   api.patch(`/users/${id}`, payload).then(r => r.data)
 
 // Clientes
-export const listClients = (search = '') =>
-  api.get('/clients/', { params: search ? { search } : {} }).then(r => r.data)
+export const listClients = (search = '', includeInactive = false) =>
+  api.get('/clients/', { params: { ...(search ? { search } : {}), include_inactive: includeInactive } }).then(r => r.data)
 
 export const createClient = (payload) =>
   api.post('/clients/', payload).then(r => r.data)
@@ -72,9 +72,21 @@ export const createClient = (payload) =>
 export const updateClient = (id, payload) =>
   api.patch(`/clients/${id}`, payload).then(r => r.data)
 
+export const inactivateClient = (id) =>
+  api.delete(`/clients/${id}`).then(r => r.data)
+
+export const activateClient = (id) =>
+  api.patch(`/clients/${id}/activate`).then(r => r.data)
+
 // Almacenes
 export const addStore = (clientId, payload) =>
   api.post(`/clients/${clientId}/stores`, payload).then(r => r.data)
 
 export const updateStore = (storeId, payload) =>
   api.patch(`/clients/stores/${storeId}`, payload).then(r => r.data)
+
+export const inactivateStore = (storeId) =>
+  api.delete(`/clients/stores/${storeId}`).then(r => r.data)
+
+export const activateStore = (storeId) =>
+  api.patch(`/clients/stores/${storeId}/activate`).then(r => r.data)

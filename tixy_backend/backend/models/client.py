@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -21,6 +21,7 @@ class Client(Base):
     phone:         Mapped[Optional[str]] = mapped_column(String(30))
     email:         Mapped[Optional[str]] = mapped_column(String(180))
     notes:         Mapped[Optional[str]] = mapped_column(Text)
+    is_active:     Mapped[bool]          = mapped_column(Boolean, default=True, server_default="1")
     created_at:    Mapped[datetime]  = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -41,6 +42,7 @@ class Store(Base):
     city:      Mapped[Optional[str]] = mapped_column(String(100), index=True)
     phone:     Mapped[Optional[str]] = mapped_column(String(30))
     contact:   Mapped[Optional[str]] = mapped_column(String(120))  # persona de contacto en el almacén
+    is_active:  Mapped[bool]     = mapped_column(Boolean, default=True, server_default="1")
     client_id: Mapped[int]      = mapped_column(ForeignKey("clients.id"))
 
     client: Mapped["Client"]    = relationship(back_populates="stores")
