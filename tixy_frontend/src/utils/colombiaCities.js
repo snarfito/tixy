@@ -89,7 +89,7 @@ export const COLOMBIA_CITIES = [
   "San Antero","San Bernardo del Viento","San Carlos","San José de Uré","San Pelayo","Tierralta",
   "Tuchín","Valencia",
   // Cundinamarca
-  "Agua de Dios","Albán","Anapoima","Ancízar","Anolaima","Arbeláez","Beltrán","Bituima","Bojacá",
+  "Agua de Dios","Albán","Anapoima","Ancízar","Anolaima","Arbeláez","Beltrán","Bituima","Bojacá","Bogotá D.C.",
   "Cabrera","Cachipay","Cajicá","Caparrapí","Cáqueza","Carmen de Carupa","Chaguaní","Chía",
   "Chipaque","Choachí","Chocontá","Cogua","Cota","Cucunubá","El Colegio","El Peñón","El Rosal",
   "Facatativá","Fomeque","Fosca","Funza","Fúquene","Fusagasugá","Gachalá","Gachancipá","Gachetá",

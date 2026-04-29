@@ -30,7 +30,7 @@ export default function VendorPage() {
   const [nit,         setNit]         = useState('')
   const [tel,         setTel]         = useState('')
   const [cel,         setCel]         = useState('')
-  const [city,        setCity]        = useState(CITIES[0])
+  const [city,        setCity]        = useState('Medellín')
 
   const [clientSearch,  setClientSearch]  = useState('')
   const [clientResults, setClientResults] = useState([])
@@ -84,6 +84,7 @@ export default function VendorPage() {
     setLines([])
     setClientName(''); setStoreName(''); setAddress('')
     setNit(''); setTel(''); setCel('')
+    setCity('Medellín')
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
     setEditingOrder(null)
     setLastOrderId(null)
@@ -363,6 +364,7 @@ export default function VendorPage() {
     setLines([])
     setClientName(''); setStoreName(''); setAddress('')
     setNit(''); setTel(''); setCel('')
+    setCity('Medellín')
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
   }
 
@@ -376,6 +378,7 @@ export default function VendorPage() {
     setLines([])
     setClientName(''); setStoreName(''); setAddress('')
     setNit(''); setTel(''); setCel('')
+    setCity('Medellín')
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
   }
 
