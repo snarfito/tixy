@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { getReferences, getCollections, searchClients, createClient, createOrder, sendOrder, downloadPdfVendor, listOrders, getOrder, updateOrder, sendOrderToClient } from '../api/orders'
 import fmt from '../utils/fmt'
+import CityCombobox from '../components/CityCombobox'
 
 function today() {
   const d = new Date()
@@ -12,22 +13,9 @@ function today() {
   }
 }
 
-const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira','Manizales','Bucaramanga','Ibagué']
+const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira','Manizales','Bucaramanga','Ibagué'] // legacy — reemplazado por CityCombobox
 
 // ── Helpers de estado de pedido ──────────────────────────────────────────────
-const STATUS_LABEL = {
-  draft:     'Borrador',
-  sent:      'Enviado',
-  confirmed: 'Confirmado',
-  cancelled: 'Cancelado',
-}
-const STATUS_CLASSES = {
-  draft:     'bg-gray-100 text-gray-600 border-gray-200',
-  sent:      'bg-blue-50 text-blue-700 border-blue-200',
-  confirmed: 'bg-green-50 text-green-700 border-green-200',
-  cancelled: 'bg-red-50 text-red-600 border-red-200',
-}
-
 export default function VendorPage() {
   const { user, token } = useAuthStore()
   const date = today()
@@ -207,7 +195,8 @@ export default function VendorPage() {
     setLines(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.price, 0)
+  // Nota: ya no se calculan ni muestran subtotales/totales en la vista del vendedor.
+  // Los totales monetarios solo son visibles para el rol de gerencia.
 
   function flash(type, msg) {
     setBanner({ type, msg })
@@ -318,7 +307,6 @@ export default function VendorPage() {
         clientName:   clientName.trim() || '—',
         storeName:    storeName.trim()  || '—',
         city,
-        total: subtotal,
       })
     } catch (err) {
       flash('err', err.response?.data?.detail || 'Error al enviar el pedido.')
@@ -427,7 +415,7 @@ export default function VendorPage() {
             <h2 className="text-xl sm:text-2xl font-semibold text-ink mb-1">
               ¡Orden enviada!
             </h2>
-            <p className="text-ink-3 text-sm mb-6">
+            <p className="text-ink-3 text-sm mb-8">
               {successOrder.clientName}
               {successOrder.storeName !== successOrder.clientName && (
                 <> · <span className="text-ink-2">{successOrder.storeName}</span>
@@ -436,15 +424,7 @@ export default function VendorPage() {
               )}
             </p>
 
-            {/* Total */}
-            <div className="bg-pink-light rounded-xl px-8 py-4 mb-8 border border-pink/20">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-pink-dark mb-1">Total del pedido</div>
-              <div className="font-mono text-3xl sm:text-4xl font-semibold text-pink-dark">
-                {fmt(successOrder.total)}
-              </div>
-            </div>
-
-            {/* Botones PDF */}
+            {/* Botón PDF (sin tarjeta de total — oculto al vendedor) */}
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-6">
               <button
                 onClick={() => handleDownloadSuccess(successOrder.id)}
@@ -675,9 +655,11 @@ export default function VendorPage() {
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-1">Ciudad</div>
-              <select className="input-base" value={city} onChange={e => setCity(e.target.value)}>
-                {CITIES.map(c => <option key={c}>{c}</option>)}
-              </select>
+              <CityCombobox
+                value={city}
+                onChange={setCity}
+                placeholder="Buscar ciudad…"
+              />
             </div>
           </div>
 
@@ -761,23 +743,21 @@ export default function VendorPage() {
                   </div>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <div className="font-mono text-sm font-semibold text-pink-dark">{fmt(l.qty * l.price)}</div>
-                <button onClick={() => removeLine(i)}
-                  className="text-ink-3 hover:text-red-500 text-xl leading-none mt-1 transition-colors">×</button>
-              </div>
+              {/* Botón eliminar — sin total por línea (oculto al vendedor) */}
+              <button onClick={() => removeLine(i)}
+                className="text-ink-3 hover:text-red-500 text-xl leading-none mt-1 transition-colors shrink-0">×</button>
             </div>
           ))}
         </div>
 
-        {/* Tabla de líneas — Vista tabla (desktop) */}
+        {/* Tabla de líneas — Vista tabla (desktop) — sin columna de Total por línea */}
         <div className="hidden sm:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-pink-light border-b-2 border-pink-mid">
                 {[['Referencia','text-left w-24'],['Descripción','text-left'],
                   ['Cantidad','text-center w-24'],['Valor unit.','text-right w-32'],
-                  ['Total','text-right w-32'],['','w-9']].map(([h, cls]) => (
+                  ['','w-9']].map(([h, cls]) => (
                   <th key={h} className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-pink-dark ${cls}`}>{h}</th>
                 ))}
               </tr>
@@ -785,7 +765,7 @@ export default function VendorPage() {
             <tbody>
               {lines.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-ink-3 py-10 text-sm">
+                  <td colSpan={5} className="text-center text-ink-3 py-10 text-sm">
                     Usa el buscador para agregar referencias al pedido.
                   </td>
                 </tr>
@@ -810,9 +790,6 @@ export default function VendorPage() {
                       className="w-28 text-right border border-line rounded-md px-2 py-1
                                  text-sm bg-surface outline-none focus:border-pink-mid focus:ring-2 focus:ring-pink/10" />
                   </td>
-                  <td className="px-4 py-2.5 text-right font-mono text-sm font-semibold text-ink">
-                    {fmt(l.qty * l.price)}
-                  </td>
                   <td className="px-2 py-2.5">
                     <button onClick={() => removeLine(i)}
                       className="text-ink-3 hover:text-red-500 text-lg leading-none transition-colors">×</button>
@@ -823,19 +800,17 @@ export default function VendorPage() {
           </table>
         </div>
 
-        {/* Totales */}
-        <div className="px-6 py-4 flex justify-end border-t border-line bg-surface">
-          <div className="w-56">
-            <div className="flex justify-between items-center py-2 border-b border-line">
-              <span className="text-xs uppercase tracking-wider font-semibold text-ink-3">Sub-total</span>
-              <span className="font-mono text-sm font-semibold text-ink">{fmt(subtotal)}</span>
-            </div>
-            <div className="flex justify-between items-center pt-3">
-              <span className="text-sm font-semibold text-pink-dark">Total</span>
-              <span className="font-mono text-xl font-semibold text-pink-dark">{fmt(subtotal)}</span>
-            </div>
+        {/* Resumen sutil de unidades — sin valores monetarios (visible solo al vendedor) */}
+        {lines.length > 0 && (
+          <div className="px-6 py-3 flex justify-end items-center border-t border-line bg-surface">
+            <span className="text-xs uppercase tracking-wider font-semibold text-ink-3">
+              Total de unidades:
+              <span className="ml-2 font-mono text-sm font-semibold text-ink">
+                {lines.reduce((s, l) => s + (Number(l.qty) || 0), 0)}
+              </span>
+            </span>
           </div>
-        </div>
+        )}
 
         {/* Firmas — solo visible en desktop/impresión */}
         <div className="hidden sm:grid grid-cols-2 gap-8 px-6 pb-6 pt-2 border-t border-line">
@@ -899,9 +874,8 @@ export default function VendorPage() {
                 <tr className="border-b border-line bg-surface">
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">#</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Fecha</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Almacén</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-3">Total</th>
-                  <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3">Estado</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Cliente</th>
+                  <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3">Unidades</th>
                   <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3 w-36">Acciones</th>
                 </tr>
               </thead>
@@ -913,18 +887,15 @@ export default function VendorPage() {
                       {new Date(order.created_at).toLocaleDateString('es-CO')}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-ink font-medium">{order.store?.name || '—'}</div>
-                      <div className="text-[11px] text-ink-3">{order.store?.city || ''}</div>
+                      <div className="text-sm text-ink font-medium">
+                        {order.store?.client?.business_name || order.store?.name || '—'}
+                      </div>
+                      <div className="text-[11px] text-ink-3">
+                        {[order.store?.name, order.store?.city].filter(Boolean).join(' · ')}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-ink">
-                      {fmt(order.total)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
-                        STATUS_CLASSES[order.status] || 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {STATUS_LABEL[order.status] || order.status}
-                      </span>
+                    <td className="px-4 py-3 text-center font-mono text-sm font-semibold text-ink">
+                      {order.units}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">

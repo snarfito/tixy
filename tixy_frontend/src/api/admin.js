@@ -1,6 +1,18 @@
 import api from './client'
 
-// Referencias
+// Categorias
+export const getCategories = (activeOnly = true) =>
+  api.get('/categories/', { params: { active_only: activeOnly } }).then(r => r.data)
+
+export const createCategory = (payload) =>
+  api.post('/categories/', payload).then(r => r.data)
+
+export const updateCategory = (id, payload) =>
+  api.patch(`/categories/${id}`, payload).then(r => r.data)
+
+export const deactivateCategory = (id) =>
+  api.delete(`/categories/${id}`)
+
 export const copyReferences = (fromId, toId) =>
   api.post('/references/copy', null, { params: { from_collection_id: fromId, to_collection_id: toId } }).then(r => r.data)
 
@@ -59,6 +71,9 @@ export const createUser = (payload) =>
 export const sendUserInvitation = (id) =>
   api.post(`/users/${id}/send-invitation`).then(r => r.data)
 
+export const setUserPassword = (id, newPassword) =>
+  api.patch(`/users/${id}/reset-password`, { new_password: newPassword }).then(r => r.data)
+
 export const updateUser = (id, payload) =>
   api.patch(`/users/${id}`, payload).then(r => r.data)
 
@@ -90,3 +105,4 @@ export const inactivateStore = (storeId) =>
 
 export const activateStore = (storeId) =>
   api.patch(`/clients/stores/${storeId}/activate`).then(r => r.data)
+

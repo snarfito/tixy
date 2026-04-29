@@ -5,13 +5,13 @@ import {
   getUsers, createUser, updateUser, sendUserInvitation, copyReferences, bulkUpdateReferences,
   listClients, createClient, updateClient, addStore, updateStore,
   inactivateClient, activateClient, inactivateStore, activateStore,
+  getCategories, createCategory, updateCategory, deactivateCategory,
+  setUserPassword,
 } from '../api/admin'
 import fmt from '../utils/fmt'
+import CityCombobox from '../components/CityCombobox'
 
-const CATEGORIES = [
-  'Vestido corto', 'Vestido largo', 'Conjunto',
-  'Blusa', 'Body', 'Camiseta', 'Chaleco', 'Otro',
-]
+// CATEGORIES ya no es estatico — cada seccion carga desde /categories/
 
 const ROLES = [
   { value: 'admin',   label: 'Administrador' },
@@ -79,10 +79,11 @@ function ActionBtn({ onClick, title, children, danger }) {
 // ════════════════════════════════════════════════════════════════════════════
 // REFERENCIAS
 // ════════════════════════════════════════════════════════════════════════════
-const EMPTY_REF = { code: '', description: '', category: CATEGORIES[0], price: '' }
+const EMPTY_REF = { code: '', description: '', category: '', price: '' }
 
 function RefsSection() {
   const [collections, setCollections] = useState([])
+  const [categories,  setCategories]  = useState([])   // carga dinamica desde /categories/
   const [selColId,    setSelColId]    = useState(null)
   const [refs,        setRefs]        = useState([])
   const [loading,     setLoading]     = useState(false)
@@ -108,6 +109,9 @@ function RefsSection() {
       setCollections(cols)
       const defaultCol = cols.find(c => c.is_active) || cols[0]
       if (defaultCol) { setSelColId(defaultCol.id); setCopyToId(defaultCol.id) }
+    })
+    getCategories(true).then(cats => {
+      setCategories(cats.map(c => c.name))
     })
   }, [])
 
@@ -316,7 +320,7 @@ function RefsSection() {
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
             className="input-base w-full sm:w-auto text-xs py-1.5">
             <option value="">Todas las categorías</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
             className="input-base w-full sm:w-auto text-xs py-1.5">
@@ -357,7 +361,7 @@ function RefsSection() {
               <select value={bulkCatVal} onChange={e => setBulkCatVal(e.target.value)}
                 className="input-base w-auto text-xs py-1.5">
                 <option value="">Selecciona categoría</option>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             )}
             {bulkAction === 'copy' && (
@@ -457,7 +461,8 @@ function RefsSection() {
             <Field label="Categoría">
               <select className="input-base" value={form.category}
                 onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                <option value="">Selecciona categoría</option>
+                {categories.map(c => <option key={c}>{c}</option>)}
               </select>
             </Field>
             <Field label="Precio base (COP)">
@@ -495,6 +500,151 @@ function RefsSection() {
               <button type="button" onClick={closeModal} className="btn-secondary text-xs">Cancelar</button>
               <button type="submit" disabled={saving} className="btn-primary text-xs disabled:opacity-50">
                 {saving ? 'Copiando…' : '⎘ Copiar referencias'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CATEGORIAS
+// ════════════════════════════════════════════════════════════════════════════
+function CatsSection() {
+  const [cats,    setCats]    = useState([])
+  const [modal,   setModal]   = useState(null)   // null | 'create' | cat-object
+  const [form,    setForm]    = useState({ name: '' })
+  const [saving,  setSaving]  = useState(false)
+  const [banner,  setBanner]  = useState(null)
+  const [showAll, setShowAll] = useState(false)
+
+  function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3000) }
+
+  useEffect(() => {
+    getCategories(false).then(setCats)
+  }, [])
+
+  const displayed = showAll ? cats : cats.filter(c => c.is_active)
+
+  function openCreate() { setForm({ name: '' }); setModal('create') }
+  function openEdit(cat) { setForm({ name: cat.name }); setModal(cat) }
+  function closeModal() { setModal(null) }
+  const isEdit = modal && modal !== 'create'
+
+  async function handleSave(e) {
+    e.preventDefault()
+    if (!form.name.trim()) return
+    setSaving(true)
+    try {
+      if (isEdit) {
+        const updated = await updateCategory(modal.id, { name: form.name.trim() })
+        setCats(prev => prev.map(c => c.id === updated.id ? updated : c))
+        flash('ok', `✓ Categoría "${updated.name}" actualizada.`)
+      } else {
+        const created = await createCategory({ name: form.name.trim() })
+        setCats(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+        flash('ok', `✓ Categoría "${created.name}" creada.`)
+      }
+      closeModal()
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al guardar.')
+    } finally { setSaving(false) }
+  }
+
+  async function handleToggle(cat) {
+    try {
+      if (cat.is_active) {
+        await deactivateCategory(cat.id)
+        setCats(prev => prev.map(c => c.id === cat.id ? { ...c, is_active: false } : c))
+        flash('ok', `Categoría "${cat.name}" desactivada.`)
+      } else {
+        const updated = await updateCategory(cat.id, { is_active: true })
+        setCats(prev => prev.map(c => c.id === updated.id ? updated : c))
+        flash('ok', `Categoría "${cat.name}" activada.`)
+      }
+    } catch (err) { flash('err', err.response?.data?.detail || 'Error.') }
+  }
+
+  return (
+    <div>
+      {banner && (
+        <div className={`mb-4 px-4 py-2.5 rounded-lg text-sm font-medium border
+          ${banner.type === 'ok' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+          {banner.msg}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <span className="text-xs text-ink-3">{cats.filter(c => c.is_active).length} activas · {cats.length} total</span>
+        <label className="flex items-center gap-1.5 text-xs text-ink-3 cursor-pointer select-none">
+          <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)}
+            className="accent-pink-dark" />
+          Ver inactivas
+        </label>
+        <div className="flex-1" />
+        <button onClick={openCreate} className="btn-primary text-xs px-3 py-1.5">+ Nueva categoría</button>
+      </div>
+
+      <div className="mb-3 p-3 rounded-lg bg-surface border border-line text-xs text-ink-3">
+        ⚠️ Las categorías activas aparecen en el formulario de referencias y en el filtro de pedidos.
+        Desactivar una categoría no afecta las referencias que ya la tienen asignada.
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-line">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-pink-light border-b border-line">
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Nombre</th>
+              <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Estado</th>
+              <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-pink-dark w-20">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayed.length === 0 ? (
+              <tr><td colSpan={3} className="text-center py-10 text-ink-3 text-sm">No hay categorías.</td></tr>
+            ) : displayed.map(cat => (
+              <tr key={cat.id} className={`border-b border-line hover:bg-surface transition-colors ${!cat.is_active ? 'opacity-50' : ''}`}>
+                <td className="px-4 py-2.5">
+                  <span className="inline-flex px-2.5 py-1 rounded-full text-[12px] font-medium bg-pink-light text-pink-dark">
+                    {cat.name}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-center">
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium
+                    ${cat.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    {cat.is_active ? 'Activa' : 'Inactiva'}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center justify-center gap-1">
+                    <ActionBtn onClick={() => openEdit(cat)} title="Editar nombre">✏️</ActionBtn>
+                    <ActionBtn onClick={() => handleToggle(cat)}
+                      title={cat.is_active ? 'Desactivar' : 'Activar'}
+                      danger={cat.is_active}>
+                      {cat.is_active ? '🗑' : '↩'}
+                    </ActionBtn>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {modal && (
+        <Modal title={isEdit ? `Editar categoría` : 'Nueva categoría'} onClose={closeModal}>
+          <form onSubmit={handleSave}>
+            <Field label="Nombre">
+              <input className="input-base" value={form.name} autoFocus
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="ej. Vestido corto" required />
+            </Field>
+            <div className="flex justify-end gap-2 mt-2">
+              <button type="button" onClick={closeModal} className="btn-secondary text-xs">Cancelar</button>
+              <button type="submit" disabled={saving} className="btn-primary text-xs disabled:opacity-50">
+                {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear categoría'}
               </button>
             </div>
           </form>
@@ -667,7 +817,9 @@ const EMPTY_USER = { full_name: '', email: '', role: 'vendor', phone: '', contac
 function UsersSection() {
   const [users,      setUsers]      = useState([])
   const [modal,      setModal]      = useState(null)   // null | 'create' | user-object
-  const [inviteModal, setInviteModal] = useState(null) // null | user-object
+  const [inviteModal, setInviteModal] = useState(null)
+  const [pwModal,     setPwModal]     = useState(null)  // null | user-object
+  const [pwValue,     setPwValue]     = useState('')
   const [form,       setForm]       = useState(EMPTY_USER)
   const [saving,     setSaving]     = useState(false)
   const [banner,     setBanner]     = useState(null)
@@ -690,6 +842,8 @@ function UsersSection() {
   function closeModal()       { setModal(null) }
   function openInviteModal(u) { setInviteModal(u) }
   function closeInviteModal() { setInviteModal(null) }
+  function openPwModal(u)     { setPwModal(u); setPwValue('') }
+  function closePwModal()     { setPwModal(null); setPwValue('') }
 
   const isEdit = modal && modal !== 'create'
 
@@ -743,6 +897,19 @@ function UsersSection() {
       setUsers(prev => prev.map(u => u.id === user.id ? updated : u))
       flash('ok', `Usuario ${updated.is_active ? 'activado' : 'desactivado'}.`)
     } catch (err) { flash('err', err.response?.data?.detail || 'Error.') }
+  }
+
+  async function handleSetPassword(e) {
+    e.preventDefault()
+    if (!pwModal || pwValue.length < 8) return
+    setSaving(true)
+    try {
+      await setUserPassword(pwModal.id, pwValue)
+      flash('ok', `✓ Contraseña de ${pwModal.full_name} actualizada.`)
+      closePwModal()
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al actualizar la contraseña.')
+    } finally { setSaving(false) }
   }
 
   return (
@@ -823,6 +990,7 @@ function UsersSection() {
                     {!user.is_superuser && (
                       <>
                         <ActionBtn onClick={() => openInviteModal(user)} title="Enviar/reenviar acceso por email">📧</ActionBtn>
+                        <ActionBtn onClick={() => openPwModal(user)} title="Asignar contraseña directamente">🔑</ActionBtn>
                         <ActionBtn onClick={() => handleToggle(user)} title={user.is_active ? 'Desactivar' : 'Activar'} danger={user.is_active}>
                           {user.is_active ? '🗑' : '↩'}
                         </ActionBtn>
@@ -901,6 +1069,39 @@ function UsersSection() {
               {saving ? 'Enviando…' : '📧 Enviar email de acceso'}
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* Modal asignar contraseña directa */}
+      {pwModal && (
+        <Modal title={`Asignar contraseña — ${pwModal.full_name}`} onClose={closePwModal}>
+          <form onSubmit={handleSetPassword}>
+            <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+              ⚠️ Esta acción establece la contraseña directamente. Úsala solo si el usuario no puede recibir el email de invitación.
+            </div>
+            <Field label="Nueva contraseña (mínimo 8 caracteres)">
+              <input
+                type="password"
+                className="input-base"
+                value={pwValue}
+                onChange={e => setPwValue(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                autoFocus
+                required
+                minLength={8}
+              />
+              {pwValue.length > 0 && pwValue.length < 8 && (
+                <p className="text-xs text-red-500 mt-1">La contraseña debe tener al menos 8 caracteres.</p>
+              )}
+            </Field>
+            <div className="flex justify-end gap-2 mt-2">
+              <button type="button" onClick={closePwModal} className="btn-secondary text-xs">Cancelar</button>
+              <button type="submit" disabled={saving || pwValue.length < 8}
+                className="btn-primary text-xs disabled:opacity-50">
+                {saving ? 'Guardando…' : '🔑 Establecer contraseña'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
@@ -1009,10 +1210,12 @@ function StoresPanel({ client, onStoreUpdated, onStoreInactivated, onStoreActiva
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-1">Ciudad</label>
-              <select className="input-base text-xs" value={form.city}
-                onChange={e => setForm(f => ({ ...f, city: e.target.value }))}>
-                {CITIES.map(c => <option key={c}>{c}</option>)}
-              </select>
+              <CityCombobox
+                value={form.city}
+                onChange={city => setForm(f => ({ ...f, city }))}
+                className="text-xs"
+                placeholder="Buscar ciudad…"
+              />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 mb-3">
@@ -1404,8 +1607,9 @@ function ClientsSection() {
 // PÁGINA PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 const TABS = [
-  { id: 'refs',    label: 'Referencias', short: 'Refs',  icon: '≡' },
-  { id: 'cols',    label: 'Colecciones', short: 'Cols',  icon: '📦' },
+  { id: 'refs',    label: 'Referencias', short: 'Refs',    icon: '≡' },
+  { id: 'cats',    label: 'Categorías',  short: 'Cats',    icon: '🏷' },
+  { id: 'cols',    label: 'Colecciones', short: 'Cols',    icon: '📦' },
   { id: 'clients', label: 'Clientes',    short: 'Clientes', icon: '🏪' },
   { id: 'users',   label: 'Usuarios',    short: 'Usuarios', icon: '👤' },
 ]
@@ -1434,6 +1638,7 @@ export default function AdminPage() {
       </div>
 
       {tab === 'refs'    && <RefsSection />}
+      {tab === 'cats'    && <CatsSection />}
       {tab === 'cols'    && <ColsSection />}
       {tab === 'clients' && <ClientsSection />}
       {tab === 'users'   && <UsersSection />}

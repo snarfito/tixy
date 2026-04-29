@@ -5,7 +5,7 @@ from pydantic import BaseModel, field_validator
 from models.order import OrderStatus
 from schemas.reference import ReferenceOut
 from schemas.user import UserOut
-from schemas.client import StoreOut, StoreWithClientOut
+from schemas.client import StoreWithClientOut
 
 
 class OrderLineCreate(BaseModel):
@@ -80,7 +80,11 @@ class OrderOut(BaseModel):
 
 
 class OrderSummary(BaseModel):
-    """Vista resumida para listados (sin líneas)."""
+    """Vista resumida para listados (sin líneas).
+
+    Incluye el cliente del almacén para que el listado del vendedor
+    pueda mostrar el nombre del cliente además del nombre del almacén.
+    """
     model_config = {"from_attributes": True}
 
     id:           int
@@ -89,7 +93,7 @@ class OrderSummary(BaseModel):
     created_at:   datetime
     vendor:       UserOut
     store_id:     int
-    store:        StoreOut
+    store:        StoreWithClientOut
     units:        int
     subtotal:     float
     total:        float

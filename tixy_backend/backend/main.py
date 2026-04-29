@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from core.config import settings
 from core.database import Base, engine
 from models import password_reset  # noqa: F401 — necesario para que create_all cree la tabla
-from routers import auth, users, collections, references, clients, orders, pdf
+from routers import auth, users, collections, references, clients, orders, pdf, categories
 
 # Crea tablas si no existen (en producción usarás Alembic)
 Base.metadata.create_all(bind=engine)
@@ -46,6 +46,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(collections.router)
+app.include_router(categories.router)
 app.include_router(references.router)
 app.include_router(clients.router)
 app.include_router(orders.router)

@@ -1,7 +1,12 @@
 """
 Generacion de PDFs para ordenes de pedido.
-  - /pdf/{order_id}?show_total=true   -> incluye totales generales (vendedor)
-  - /pdf/{order_id}?show_total=false  -> sin totales generales, si subtotal por linea (cliente)
+  - /pdf/{order_id}?show_total=true   -> incluye totales (solo gerencia/admin)
+  - /pdf/{order_id}?show_total=false  -> sin totales ni subtotal por linea (vendedor/cliente)
+Cambios abr-2026:
+  - Header sin fondo oscuro (ahorro tinta): fondo blanco, logo rojo, textos oscuros.
+  - Maximo 25 referencias por hoja (igual al talonario fisico).
+  - Filas compactas (font 7pt, padding 3pt) para que 25 items + firmas quepan en una hoja.
+  - Vendedor siempre recibe PDF sin totales (forzado en backend).
 """
 import io
 from pathlib import Path
@@ -15,7 +20,7 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas as pdfcanvas
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import Flowable
 from sqlalchemy.orm import Session, joinedload
 
@@ -28,16 +33,14 @@ from models.user import User, UserRole
 # ---------------------------------------------------------------------------
 # Rutas de assets
 # ---------------------------------------------------------------------------
-_ASSETS   = Path(__file__).parent.parent / "assets"
-_FONTS    = _ASSETS / "fonts"
-_LOGO_W   = _ASSETS / "logo-blanco.png"   # logo blanco para fondo oscuro
-_LOGO_R   = _ASSETS / "logo-rojo.png"     # logo rojo para fondo claro
-_LOGO_P   = _ASSETS / "logo-pink.png"     # logo #C0206A para fondo oscuro
+_ASSETS = Path(__file__).parent.parent / "assets"
+_FONTS  = _ASSETS / "fonts"
+_LOGO_W = _ASSETS / "logo-blanco.png"
+_LOGO_R = _ASSETS / "logo-rojo.png"
+_LOGO_P = _ASSETS / "logo-pink.png"
 
 # ---------------------------------------------------------------------------
-# Registro de fuentes
-# Sora (tipografia oficial de marca) con fallback a Helvetica
-# Coloca los .ttf en: tixy_backend/backend/assets/fonts/
+# Registro de fuentes (Sora, con fallback a Helvetica)
 # ---------------------------------------------------------------------------
 def _try_register(name: str, filename: str) -> bool:
     path = _FONTS / filename
@@ -49,16 +52,15 @@ def _try_register(name: str, filename: str) -> bool:
             pass
     return False
 
-_sora_ok        = _try_register("Sora",         "Sora-Regular.ttf")
-_sora_medium_ok = _try_register("Sora-Medium",  "Sora-Medium.ttf")
-_sora_semi_ok   = _try_register("Sora-SemiBold","Sora-SemiBold.ttf")
-_sora_bold_ok   = _try_register("Sora-Bold",    "Sora-Bold.ttf")
+_sora_ok        = _try_register("Sora",          "Sora-Regular.ttf")
+_sora_medium_ok = _try_register("Sora-Medium",   "Sora-Medium.ttf")
+_sora_semi_ok   = _try_register("Sora-SemiBold", "Sora-SemiBold.ttf")
+_sora_bold_ok   = _try_register("Sora-Bold",     "Sora-Bold.ttf")
 
-# Mapas de fuente: usa Sora si está disponible, si no Helvetica
-F_BODY  = "Sora"          if _sora_ok        else "Helvetica"
-F_MED   = "Sora-Medium"   if _sora_medium_ok else "Helvetica"
-F_SEMI  = "Sora-SemiBold" if _sora_semi_ok   else "Helvetica-Bold"
-F_BOLD  = "Sora-Bold"     if _sora_bold_ok   else "Helvetica-Bold"
+F_BODY = "Sora"          if _sora_ok        else "Helvetica"
+F_MED  = "Sora-Medium"   if _sora_medium_ok else "Helvetica"
+F_SEMI = "Sora-SemiBold" if _sora_semi_ok   else "Helvetica-Bold"
+F_BOLD = "Sora-Bold"     if _sora_bold_ok   else "Helvetica-Bold"
 
 router = APIRouter(prefix="/pdf", tags=["pdf"])
 
@@ -74,15 +76,14 @@ WHITE     = colors.white
 BLACK     = colors.HexColor("#111111")
 TEXT_SOFT = colors.HexColor("#999999")
 
+# Maximo de referencias por hoja (igual al talonario fisico)
+ROWS_PER_PAGE = 25
+
 
 # ---------------------------------------------------------------------------
 # Canvas con numeracion de paginas
 # ---------------------------------------------------------------------------
 class NumberedCanvas(pdfcanvas.Canvas):
-    """
-    Acumula el estado de cada pagina y al guardar estampa
-    'Hoja X de N' en el pie de cada hoja (solo si hay mas de una).
-    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states: list[dict] = []
@@ -109,31 +110,26 @@ class NumberedCanvas(pdfcanvas.Canvas):
 
 
 # ---------------------------------------------------------------------------
-# Banda decorativa de estrellas (fiel a la plantilla de marca)
+# Banda decorativa de estrellas al pie de pagina
 # ---------------------------------------------------------------------------
 def _draw_star_band(canv, y: float, width: float, height: float,
                     bg_color, star_color) -> None:
-    """
-    Dibuja una franja horizontal con estrellas de 4 puntas (✦),
-    identica a la de la plantilla impresa de Tixy Glamour.
-    """
     canv.saveState()
     canv.setFillColor(bg_color)
     canv.rect(0, y, width, height, fill=1, stroke=0)
 
-    # Estrella de 4 puntas: dibujada como path
-    star_size  = height * 0.52
-    half       = star_size / 2
-    thin       = star_size * 0.13
-    spacing    = height * 1.55
-    center_y   = y + height / 2
+    star_size = height * 0.52
+    half      = star_size / 2
+    thin      = star_size * 0.13
+    spacing   = height * 1.55
+    center_y  = y + height / 2
 
     canv.setFillColor(star_color)
     x = spacing * 0.5
     while x < width:
         cx, cy = x, center_y
         p = canv.beginPath()
-        p.moveTo(cx,        cy + half)
+        p.moveTo(cx,         cy + half)
         p.curveTo(cx + thin, cy + thin, cx + thin, cy + thin, cx + half, cy)
         p.curveTo(cx + thin, cy - thin, cx + thin, cy - thin, cx,        cy - half)
         p.curveTo(cx - thin, cy - thin, cx - thin, cy - thin, cx - half, cy)
@@ -146,14 +142,9 @@ def _draw_star_band(canv, y: float, width: float, height: float,
 
 
 # ---------------------------------------------------------------------------
-# Encabezado dibujado en canvas
+# Encabezado de pagina - fondo blanco, logo rojo (ahorro tinta abr-2026)
 # ---------------------------------------------------------------------------
 def _draw_page_header(canv, order: "Order", full: bool) -> None:
-    """
-    full=True  → encabezado grande con logo, datos y numero de orden (pagina 1)
-    full=False → franja compacta con logo y numero de orden (paginas 2+)
-    Fondo blanco, logo rojo — fiel a la plantilla impresa de marca.
-    """
     PAGE_W, PAGE_H = letter
     L = 1.4 * cm
     R = 1.4 * cm
@@ -165,96 +156,78 @@ def _draw_page_header(canv, order: "Order", full: bool) -> None:
 
     canv.saveState()
 
-    # ── Fondo oscuro redondeado ──────────────────────────────────────────
-    canv.setFillColor(DARK)
-    canv.roundRect(L, BOT_Y, W, H, radius=7, fill=1, stroke=0)
+    # Fondo blanco + linea pink en la base del header
+    canv.setFillColor(WHITE)
+    canv.rect(L, BOT_Y, W, H, fill=1, stroke=0)
+    canv.setStrokeColor(PINK)
+    canv.setLineWidth(0.8)
+    canv.line(L, BOT_Y, L + W, BOT_Y)
 
-    # ── Logo #C0206A sobre fondo oscuro ────────────────────────────────────
-    logo_path = _LOGO_P if _LOGO_P.exists() else (_LOGO_W if _LOGO_W.exists() else None)
+    # Logo rojo sobre fondo blanco
+    logo_path = _LOGO_R if _LOGO_R.exists() else (_LOGO_P if _LOGO_P.exists() else None)
     if logo_path:
         if full:
             logo_h = 1.45 * cm
-            # Anclar logo desde arriba con padding fijo para que el bloque
-            # logo + texto de contacto quede centrado visualmente
             logo_y = TOP_Y - 0.45 * cm - logo_h
         else:
             logo_h = 0.9 * cm
-            # Centrar verticalmente en header compacto
             logo_y = BOT_Y + (H - logo_h) / 2
 
-        # Proporcion real del logo: 480x199 ≈ 2.41:1
         logo_w = logo_h * (480 / 199)
         logo_x = L + 0.4 * cm
 
-        canv.drawImage(
-            str(logo_path),
-            logo_x, logo_y,
-            width=logo_w, height=logo_h,
-            mask="auto",
-            preserveAspectRatio=True,
-        )
+        canv.drawImage(str(logo_path), logo_x, logo_y,
+                       width=logo_w, height=logo_h,
+                       mask="auto", preserveAspectRatio=True)
 
-        # Datos de contacto debajo del logo (solo en encabezado completo)
         if full:
-            canv.setFillColor(colors.HexColor("#C09090"))
+            canv.setFillColor(colors.HexColor("#777777"))
             canv.setFont(F_BODY, 6.5)
             txt_y = logo_y - 0.28 * cm
             canv.drawString(logo_x, txt_y,
-                            "Transversal 49c #59-62, 4to piso  \u00b7  Centro Mundial De La Moda")
+                "Transversal 49c #59-62, 4to piso  \u00b7  Centro Mundial De La Moda")
             canv.drawString(logo_x, txt_y - 0.28 * cm,
-                            "319 680 0557  \u00b7  313 623 1499")
+                "319 680 0557  \u00b7  313 623 1499")
     else:
-        # Fallback: texto si no hay imagen
         canv.setFillColor(PINK)
         canv.setFont("Helvetica-BoldOblique", 28 if full else 18)
         canv.drawString(L + 0.5 * cm, BOT_Y + H * 0.5, "Tixy Glamour")
 
-    # ── Separador vertical ───────────────────────────────────────────────
+    # Separador vertical gris claro
     mid_x = L + W * 0.56
-    canv.setStrokeColor(colors.HexColor("#5A2040"))
+    canv.setStrokeColor(colors.HexColor("#E0D0D8"))
     canv.setLineWidth(0.5)
     canv.line(mid_x, BOT_Y + 0.2 * cm, mid_x, TOP_Y - 0.45 * cm)
 
-    # ── Columna derecha: titulo + numero + fecha ─────────────────────────
+    # Columna derecha: titulo + numero + fecha en oscuro
     x_right = PAGE_W - R - 0.4 * cm
     if full:
-        canv.setFillColor(colors.HexColor("#E8B0C8"))
+        canv.setFillColor(colors.HexColor("#888888"))
         canv.setFont(F_BODY, 7)
         canv.drawRightString(x_right, TOP_Y - 0.75 * cm, "ORDEN DE PEDIDO")
-
         canv.setFillColor(PINK)
         canv.setFont(F_BOLD, 26)
         canv.drawRightString(x_right, TOP_Y - 1.9 * cm, f"#{order.order_number}")
-
-        canv.setFillColor(colors.HexColor("#C09090"))
+        canv.setFillColor(colors.HexColor("#666666"))
         canv.setFont(F_BODY, 7.5)
         canv.drawRightString(x_right, TOP_Y - 2.55 * cm,
                              order.created_at.strftime("%d/%m/%Y"))
     else:
-        canv.setFillColor(colors.HexColor("#E8B0C8"))
+        canv.setFillColor(colors.HexColor("#888888"))
         canv.setFont(F_BODY, 6.5)
         canv.drawRightString(x_right, TOP_Y - 0.52 * cm, "ORDEN DE PEDIDO")
-
         canv.setFillColor(PINK)
         canv.setFont(F_BOLD, 18)
         canv.drawRightString(x_right, TOP_Y - 1.25 * cm, f"#{order.order_number}")
-
-        canv.setFillColor(colors.HexColor("#C09090"))
+        canv.setFillColor(colors.HexColor("#666666"))
         canv.setFont(F_BODY, 7)
         canv.drawRightString(x_right, TOP_Y - 1.5 * cm,
                              order.created_at.strftime("%d/%m/%Y"))
 
     canv.restoreState()
 
-    # ── Banda de estrellas al pie (fiel a la plantilla) ──────────────────
-    _draw_star_band(
-        canv,
-        y      = 0.3  * cm,
-        width  = PAGE_W,
-        height = 0.45 * cm,
-        bg_color   = PINK,
-        star_color = WHITE,
-    )
+    _draw_star_band(canv, y=0.3 * cm, width=PAGE_W, height=0.45 * cm,
+                    bg_color=PINK, star_color=WHITE)
 
 
 # ---------------------------------------------------------------------------
@@ -294,8 +267,8 @@ class TopRoundedBlock(Flowable):
 # Construccion del PDF
 # ---------------------------------------------------------------------------
 def _build_pdf(order: Order, show_total: bool) -> bytes:
-    buf     = io.BytesIO()
-    PAGE_W  = letter[0]
+    buf      = io.BytesIO()
+    PAGE_W   = letter[0]
     L_MARGIN = 1.4 * cm
     R_MARGIN = 1.4 * cm
     USABLE_W = PAGE_W - L_MARGIN - R_MARGIN
@@ -311,7 +284,7 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
     styles = getSampleStyleSheet()
     story  = []
 
-    # ── Barra de vendedor ────────────────────────────────────────────────
+    # Barra de vendedor
     vendor  = order.vendor
     contact = vendor.contact_info or vendor.phone or ""
 
@@ -337,81 +310,113 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
         width=USABLE_W, height=vendor_inner._height,
         radius=6, fill_color=PINK_LITE, inner_table=vendor_inner,
     ))
-    story.append(Spacer(1, 0.22 * cm))
+    story.append(Spacer(1, 0.18 * cm))
 
-    # ── Datos del cliente / almacen ──────────────────────────────────────
+    # Datos del cliente / almacen
     store  = order.store
     client = store.client
 
     lbl = ParagraphStyle("lbl", parent=styles["Normal"],
-                         textColor=PINK, fontName=F_SEMI, fontSize=8, leading=11)
+                         textColor=PINK, fontName=F_SEMI, fontSize=7.5, leading=10)
     val = ParagraphStyle("val", parent=styles["Normal"],
-                         textColor=BLACK, fontName=F_BODY, fontSize=8, leading=11)
+                         textColor=BLACK, fontName=F_BODY, fontSize=7.5, leading=10)
     sub = ParagraphStyle("sub", parent=styles["Normal"],
-                         textColor=TEXT_SOFT, fontName=F_BODY, fontSize=8, leading=11)
+                         textColor=TEXT_SOFT, fontName=F_BODY, fontSize=7.5, leading=10)
 
     ct = Table([
-        [Paragraph("Cliente:",    lbl), Paragraph(client.business_name,   val),
-         Paragraph("NIT/CC:",     lbl), Paragraph(client.nit or "\u2014", val)],
-        [Paragraph("Almac\u00e9n:", lbl), Paragraph(store.name,           val),
-         Paragraph("Ciudad:",     lbl), Paragraph(store.city or "\u2014", val)],
+        [Paragraph("Cliente:",      lbl), Paragraph(client.business_name,    val),
+         Paragraph("NIT/CC:",       lbl), Paragraph(client.nit or "\u2014",  val)],
+        [Paragraph("Almac\u00e9n:", lbl), Paragraph(store.name,              val),
+         Paragraph("Ciudad:",       lbl), Paragraph(store.city or "\u2014",  val)],
         [Paragraph("Direcci\u00f3n:", lbl), Paragraph(store.address or "\u2014", val),
-         Paragraph("Tel:",        lbl), Paragraph(store.phone or "\u2014", sub)],
+         Paragraph("Tel:",          lbl), Paragraph(store.phone or "\u2014", sub)],
     ], colWidths=[2.1*cm, 8.2*cm, 2.1*cm, 5.1*cm])
 
     ct.setStyle(TableStyle([
-        ("FONTSIZE",      (0,0),(-1,-1), 8),
+        ("FONTSIZE",      (0,0),(-1,-1), 7.5),
         ("ROWBACKGROUNDS",(0,0),(-1,-1), [WHITE, GRAY]),
         ("GRID",          (0,0),(-1,-1), 0.3, LINE),
-        ("TOPPADDING",    (0,0),(-1,-1), 4),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 4),
-        ("LEFTPADDING",   (0,0),(-1,-1), 7),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 7),
+        ("TOPPADDING",    (0,0),(-1,-1), 3),
+        ("BOTTOMPADDING", (0,0),(-1,-1), 3),
+        ("LEFTPADDING",   (0,0),(-1,-1), 6),
+        ("RIGHTPADDING",  (0,0),(-1,-1), 6),
         ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
     ]))
     story.append(ct)
-    story.append(Spacer(1, 0.28 * cm))
+    story.append(Spacer(1, 0.2 * cm))
 
-    # ── Tabla de productos ───────────────────────────────────────────────
-    rows = [["Referencia", "Descripci\u00f3n", "Categor\u00eda", "Cant.", "Vlr. unit.", "Subtotal"]]
-    for ln in order.lines:
-        rows.append([
-            ln.reference.code,
-            Paragraph(ln.reference.description,
-                      ParagraphStyle("desc", fontName=F_BODY, fontSize=8, leading=10)),
-            ln.reference.category.value
-                if hasattr(ln.reference.category, "value")
-                else str(ln.reference.category),
-            str(ln.quantity),
-            f"${ln.unit_price:,.0f}".replace(",", "."),
-            f"${ln.line_total:,.0f}".replace(",", "."),
-        ])
+    # Estilo de Paragraph para descripciones (compacto)
+    desc_style = ParagraphStyle("desc", fontName=F_BODY, fontSize=7, leading=9)
 
-    pt = Table(rows, colWidths=[2.2*cm, 6.8*cm, 2.9*cm, 1.4*cm, 2.2*cm, 2.2*cm],
-               repeatRows=1)
-    pt.setStyle(TableStyle([
+    # Preparar filas segun visibilidad de totales
+    if show_total:
+        header_row = ["Referencia", "Descripci\u00f3n", "Categor\u00eda",
+                      "Cant.", "Vlr. unit.", "Subtotal"]
+        data_rows = []
+        for ln in order.lines:
+            data_rows.append([
+                ln.reference.code,
+                Paragraph(ln.reference.description, desc_style),
+                ln.reference.category.value
+                    if hasattr(ln.reference.category, "value")
+                    else str(ln.reference.category),
+                str(ln.quantity),
+                f"${ln.unit_price:,.0f}".replace(",", "."),
+                f"${ln.line_total:,.0f}".replace(",", "."),
+            ])
+        col_widths       = [2.2*cm, 6.8*cm, 2.9*cm, 1.4*cm, 2.2*cm, 2.2*cm]
+        align_right_from = 3
+    else:
+        header_row = ["Referencia", "Descripci\u00f3n", "Categor\u00eda", "Cant.", "Vlr. unit."]
+        data_rows = []
+        for ln in order.lines:
+            data_rows.append([
+                ln.reference.code,
+                Paragraph(ln.reference.description, desc_style),
+                ln.reference.category.value
+                    if hasattr(ln.reference.category, "value")
+                    else str(ln.reference.category),
+                str(ln.quantity),
+                f"${ln.unit_price:,.0f}".replace(",", "."),
+            ])
+        col_widths       = [2.2*cm, 7.9*cm, 2.9*cm, 1.4*cm, 3.3*cm]
+        align_right_from = 3
+
+    # Estilo de tabla compacto: 7pt datos, padding 3pt -> ~0.54cm por fila
+    # 25 filas * 0.54cm = 13.5cm + header(0.55cm) + elementos fijos (~7cm) = ~21cm < 23.2cm disponibles
+    table_style = TableStyle([
         ("FONTNAME",      (0,0),(-1,0),  F_SEMI),
-        ("FONTSIZE",      (0,0),(-1,0),  8),
+        ("FONTSIZE",      (0,0),(-1,0),  7.5),
         ("BACKGROUND",    (0,0),(-1,0),  PINK),
         ("TEXTCOLOR",     (0,0),(-1,0),  WHITE),
-        ("TOPPADDING",    (0,0),(-1,0),  6),
-        ("BOTTOMPADDING", (0,0),(-1,0),  6),
+        ("TOPPADDING",    (0,0),(-1,0),  4),
+        ("BOTTOMPADDING", (0,0),(-1,0),  4),
         ("FONTNAME",      (0,1),(-1,-1), F_BODY),
-        ("FONTSIZE",      (0,1),(-1,-1), 8),
+        ("FONTSIZE",      (0,1),(-1,-1), 7),
         ("ROWBACKGROUNDS",(0,1),(-1,-1), [WHITE, GRAY]),
         ("GRID",          (0,0),(-1,-1), 0.3, LINE),
-        ("ALIGN",         (3,0),(-1,-1), "RIGHT"),
+        ("ALIGN",         (align_right_from,0),(-1,-1), "RIGHT"),
         ("ALIGN",         (0,0),(0,-1),  "LEFT"),
         ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
-        ("TOPPADDING",    (0,1),(-1,-1), 5),
-        ("BOTTOMPADDING", (0,1),(-1,-1), 5),
-        ("LEFTPADDING",   (0,0),(-1,-1), 6),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 6),
-    ]))
-    story.append(pt)
-    story.append(Spacer(1, 0.3 * cm))
+        ("TOPPADDING",    (0,1),(-1,-1), 3),
+        ("BOTTOMPADDING", (0,1),(-1,-1), 3),
+        ("LEFTPADDING",   (0,0),(-1,-1), 5),
+        ("RIGHTPADDING",  (0,0),(-1,-1), 5),
+    ])
 
-    # ── Totales (solo si show_total=True) ────────────────────────────────
+    # Partir en chunks de ROWS_PER_PAGE con PageBreak entre cada bloque
+    chunks = [data_rows[i:i + ROWS_PER_PAGE]
+              for i in range(0, max(len(data_rows), 1), ROWS_PER_PAGE)]
+
+    for idx, chunk in enumerate(chunks):
+        if idx > 0:
+            story.append(PageBreak())
+        pt = Table([header_row] + chunk, colWidths=col_widths, repeatRows=1)
+        pt.setStyle(table_style)
+        story.append(pt)
+        story.append(Spacer(1, 0.2 * cm))
+
+    # Totales (solo gerencia/admin)
     if show_total:
         col_w = [2.2*cm, 6.8*cm, 2.9*cm, 1.4*cm, 2.2*cm, 2.2*cm]
         tt = Table([
@@ -419,30 +424,28 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
             ["","","","", "TOTAL:",     f"${order.total:,.0f}".replace(",",".")],
         ], colWidths=col_w)
         tt.setStyle(TableStyle([
-            ("FONTNAME",     (0,0),(-1,-1), F_BODY),
-            ("FONTSIZE",     (0,0),(-1,-1), 9),
-            ("FONTNAME",     (4,1),(5,1),   F_BOLD),
-            ("FONTSIZE",     (4,1),(5,1),   11),
-            ("TEXTCOLOR",    (4,0),(4,-1),  PINK),
-            ("TEXTCOLOR",    (5,0),(5,-1),  BLACK),
-            ("ALIGN",        (4,0),(-1,-1), "RIGHT"),
-            ("TOPPADDING",   (0,0),(-1,-1), 4),
-            ("BOTTOMPADDING",(0,0),(-1,-1), 4),
-            ("LEFTPADDING",  (0,0),(-1,-1), 6),
-            ("RIGHTPADDING", (0,0),(-1,-1), 6),
-            ("LINEABOVE",    (4,0),(5,0),   0.5, LINE),
-            ("LINEBELOW",    (4,1),(5,1),   1.2, PINK),
+            ("FONTNAME",      (0,0),(-1,-1), F_BODY),
+            ("FONTSIZE",      (0,0),(-1,-1), 9),
+            ("FONTNAME",      (4,1),(5,1),   F_BOLD),
+            ("FONTSIZE",      (4,1),(5,1),   11),
+            ("TEXTCOLOR",     (4,0),(4,-1),  PINK),
+            ("TEXTCOLOR",     (5,0),(5,-1),  BLACK),
+            ("ALIGN",         (4,0),(-1,-1), "RIGHT"),
+            ("TOPPADDING",    (0,0),(-1,-1), 4),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 4),
+            ("LEFTPADDING",   (0,0),(-1,-1), 5),
+            ("RIGHTPADDING",  (0,0),(-1,-1), 5),
+            ("LINEABOVE",     (4,0),(5,0),   0.5, LINE),
+            ("LINEBELOW",     (4,1),(5,1),   1.2, PINK),
         ]))
         story.append(tt)
-        story.append(Spacer(1, 0.3 * cm))
+        story.append(Spacer(1, 0.2 * cm))
 
-    # ── Firmas ───────────────────────────────────────────────────────────
-    story.append(Spacer(1, 1.2 * cm))
-    f_line  = ParagraphStyle("fl", parent=styles["Normal"],
-                              fontName=F_BODY, fontSize=8,
+    # Firmas
+    story.append(Spacer(1, 0.8 * cm))
+    f_line  = ParagraphStyle("fl",  parent=styles["Normal"], fontName=F_BODY, fontSize=8,
                               textColor=colors.HexColor("#BBBBBB"), alignment=1)
-    f_label = ParagraphStyle("fla", parent=styles["Normal"],
-                              fontName=F_BODY, fontSize=8,
+    f_label = ParagraphStyle("fla", parent=styles["Normal"], fontName=F_BODY, fontSize=8,
                               textColor=TEXT_SOFT, alignment=1)
     for row_data in (
         [[Paragraph("_________________________", f_line),
@@ -492,6 +495,10 @@ def download_order_pdf(
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     if me.role == UserRole.VENDOR and order.vendor_id != me.id:
         raise HTTPException(status_code=403, detail="Acceso denegado")
+
+    # Vendedores siempre reciben PDF sin totales
+    if me.role == UserRole.VENDOR:
+        show_total = False
 
     pdf_bytes = _build_pdf(order, show_total=show_total)
     suffix    = "con-total" if show_total else "sin-total"

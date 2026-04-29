@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listOrders, confirmOrder, cancelOrder, salesByReference, salesByVendor, salesByCollection, getCollections, getUsers, viewPdf, getOrder } from '../api/manager'
+import { listOrders, cancelOrder, salesByReference, salesByVendor, salesByCollection, getCollections, getUsers, viewPdf, getOrder, getCategories, downloadExcelReport } from '../api/manager'
+import CityCombobox from '../components/CityCombobox'
 import fmt from '../utils/fmt'
 
 // ── Modal de Vista Rápida ────────────────────────────────────────────────────
@@ -160,11 +161,10 @@ function OrderDetailModal({ order, onClose }) {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-const STATUS_LABEL = { draft: 'Borrador', sent: 'Enviado', confirmed: 'Confirmado', cancelled: 'Cancelado' }
+const STATUS_LABEL = { draft: 'Borrador', sent: 'Enviado', cancelled: 'Cancelado' }
 const STATUS_BADGE = {
   draft:     'bg-gray-100 text-gray-500',
   sent:      'bg-gold-light text-amber-700',
-  confirmed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-500',
 }
 const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira','Manizales','Bucaramanga','Ibagué']
@@ -433,7 +433,8 @@ export default function ManagerPage() {
   const [orders,      setOrders]      = useState([])
   const [refSales,    setRefSales]    = useState([])
   const [vendorSales, setVendorSales] = useState([])
-  const [colSales,    setColSales]    = useState([])   // ← comparativas
+  const [colSales,    setColSales]    = useState([])   // comparativas
+  const [categories,   setCategories]  = useState([])   // categorias dinamicas
   const [loading,     setLoading]     = useState(true)
   const [banner,      setBanner]      = useState(null)
   const [activeTab,   setActiveTab]   = useState('pedidos')  // 'pedidos' | 'comparativas'
@@ -447,6 +448,26 @@ export default function ManagerPage() {
   const [fPeriod,   setFPeriod]   = useState('')   // 'hoy' | 'semana' | 'mes' | 'anio' | 'custom' | ''
   const [fDateFrom, setFDateFrom] = useState('')
   const [fDateTo,   setFDateTo]   = useState('')
+
+  // Estado para reportes Excel
+  const [excelCol,     setExcelCol]     = useState('')
+  const [excelLoading, setExcelLoading] = useState({ unidades: false, costos: false })
+  const [excelError,   setExcelError]   = useState('')
+
+  async function handleDownloadExcel(reportType) {
+    if (!excelCol) { setExcelError('Selecciona una colección'); return }
+    const col = collections.find(c => String(c.id) === String(excelCol))
+    const colName = col ? col.name : 'Reporte'
+    setExcelError('')
+    setExcelLoading(prev => ({ ...prev, [reportType]: true }))
+    try {
+      await downloadExcelReport(excelCol, colName, reportType)
+    } catch (e) {
+      setExcelError(e.message || 'Error generando el reporte')
+    } finally {
+      setExcelLoading(prev => ({ ...prev, [reportType]: false }))
+    }
+  }
 
   // Calcula las fechas según el período seleccionado
   function getDateParams() {
@@ -483,6 +504,7 @@ export default function ManagerPage() {
       })
     // comparativas: independiente de filtros
     salesByCollection().then(setColSales).catch(() => {})
+    getCategories(true).then(cats => setCategories(cats.map(c => c.name))).catch(() => {})
   }, [])
 
   // carga de pedidos y reportes cuando cambian los filtros
@@ -545,14 +567,6 @@ export default function ManagerPage() {
     finally { setDownloading(prev => ({ ...prev, [order.id]: false })) }
   }
 
-  async function handleConfirm(order) {
-    try {
-      const updated = await confirmOrder(order.id)
-      setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
-      flash('ok', `✓ Pedido #${order.order_number} confirmado.`)
-    } catch (err) { flash('err', err.response?.data?.detail || 'Error.') }
-  }
-
   async function handleCancel(order) {
     if (!confirm(`¿Cancelar el pedido #${order.order_number}?`)) return
     try {
@@ -602,6 +616,7 @@ export default function ManagerPage() {
         {[
           { id: 'pedidos',      label: 'Pedidos y Rankings',      icon: '≡' },
           { id: 'comparativas', label: 'Comparativa Colecciones', icon: '⇄' },
+          { id: 'reportes',     label: 'Reportes Excel',           icon: '⇩' },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 px-5 py-3 text-[13px] font-medium border-b-2 transition-colors
@@ -664,11 +679,14 @@ export default function ManagerPage() {
               {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
 
-            <select value={fCity} onChange={e => setFCity(e.target.value)}
-              className="input-base w-full sm:w-auto text-xs py-1.5">
-              <option value="">Todas las ciudades</option>
-              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <div className="w-full sm:w-44">
+              <CityCombobox
+                value={fCity}
+                onChange={setFCity}
+                placeholder="Ciudad…"
+                className="text-xs py-1.5"
+              />
+            </div>
 
             <select value={fVendor} onChange={e => setFVendor(e.target.value)}
               className="input-base w-full sm:w-auto text-xs py-1.5">
@@ -679,7 +697,7 @@ export default function ManagerPage() {
             <select value={fCategory} onChange={e => setFCategory(e.target.value)}
               className="input-base w-full sm:w-auto text-xs py-1.5">
               <option value="">Todas las categorías</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
             {(fCol || fStatus || fCity || fVendor || fCategory || fPeriod) && (
@@ -735,13 +753,6 @@ export default function ManagerPage() {
                       </td>
                       <td className="px-3 py-2.5 text-center" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1 flex-wrap">
-                          {order.status === 'sent' && (
-                            <button onClick={() => handleConfirm(order)}
-                              title="Confirmar pedido"
-                              className="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
-                              ✓ Confirmar
-                            </button>
-                          )}
                           {(order.status === 'sent' || order.status === 'draft') && (
                             <button onClick={() => handleCancel(order)}
                               title="Cancelar pedido"
@@ -829,6 +840,71 @@ export default function ManagerPage() {
       {/* ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'comparativas' && (
         <ComparativasSection data={colSales} />
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/* TAB: Reportes Excel                                             */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'reportes' && (
+        <div className="max-w-xl">
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-7 h-7 rounded-lg bg-pink-light text-pink-dark flex items-center justify-center text-base">⇩</span>
+              <span className="text-base font-semibold text-ink">Exportar reporte por colección</span>
+            </div>
+            <p className="text-xs text-ink-3 mb-5">
+              Genera un archivo Excel con una pestaña por vendedor, referencias en filas y clientes en columnas.
+            </p>
+
+            {/* Selector de colección */}
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-ink-2 mb-1.5">Colección</label>
+              <select
+                value={excelCol}
+                onChange={e => { setExcelCol(e.target.value); setExcelError('') }}
+                className="input-base w-full text-sm">
+                <option value="">-- Selecciona una colección --</option>
+                {collections.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} {c.year ? `· ${c.year}` : ''}</option>
+                ))}
+              </select>
+              {excelError && (
+                <p className="text-xs text-red-500 mt-1.5">{excelError}</p>
+              )}
+            </div>
+
+            {/* Botones de descarga */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Reporte por unidades */}
+              <button
+                onClick={() => handleDownloadExcel('unidades')}
+                disabled={excelLoading.unidades || excelLoading.costos}
+                className="flex flex-col items-center gap-2 px-4 py-4 rounded-xl border-2 border-pink/30 bg-pink-light hover:bg-pink/10 transition-colors disabled:opacity-50 group">
+                <span className="text-2xl">📋</span>
+                <span className="text-sm font-semibold text-pink-dark">
+                  {excelLoading.unidades ? 'Generando…' : 'Unidades vendidas'}
+                </span>
+                <span className="text-[11px] text-ink-3 text-center">Cantidades por referencia y cliente</span>
+              </button>
+
+              {/* Reporte por costos */}
+              <button
+                onClick={() => handleDownloadExcel('costos')}
+                disabled={excelLoading.unidades || excelLoading.costos}
+                className="flex flex-col items-center gap-2 px-4 py-4 rounded-xl border-2 border-[#1A0D14]/20 bg-[#1A0D14]/5 hover:bg-[#1A0D14]/10 transition-colors disabled:opacity-50 group">
+                <span className="text-2xl">💰</span>
+                <span className="text-sm font-semibold text-ink">
+                  {excelLoading.costos ? 'Generando…' : 'Ventas en costos'}
+                </span>
+                <span className="text-[11px] text-ink-3 text-center">Valor en pesos por referencia y cliente</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-ink-3 mt-4 text-center">
+              Cada pestaña del Excel corresponde a un vendedor · Incluye totales por fila y columna
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Modal de Vista Rápida de pedido */}

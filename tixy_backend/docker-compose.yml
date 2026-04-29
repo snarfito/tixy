@@ -31,6 +31,9 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 3306
+      # Fuerza polling para que --reload de uvicorn detecte cambios
+      # en volúmenes montados (necesario en macOS con Docker Desktop)
+      WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8000:8000"
     depends_on:

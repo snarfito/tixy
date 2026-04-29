@@ -1,5 +1,8 @@
 import api from './client'
 
+export const getCategories = (activeOnly = true) =>
+  api.get('/categories/', { params: { active_only: activeOnly } }).then(r => r.data)
+
 export const viewPdf = async (orderId, showTotal = true) => {
   const token = localStorage.getItem('tixy_token')
   const res = await fetch(
@@ -57,3 +60,24 @@ export const getCollections = () =>
 
 export const getUsers = () =>
   api.get('/users/').then(r => r.data)
+
+export const downloadExcelReport = async (collectionId, collectionName, reportType) => {
+  const token = localStorage.getItem('tixy_token')
+  const base  = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  const res   = await fetch(
+    `${base}/orders/report/excel?collection_id=${collectionId}&report_type=${reportType}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error generando el reporte')
+  }
+  const blob     = await res.blob()
+  const url      = URL.createObjectURL(blob)
+  const a        = document.createElement('a')
+  const tipo     = reportType === 'unidades' ? 'Unidades' : 'Costos'
+  a.download     = `${collectionName} - ${tipo}.xlsx`
+  a.href         = url
+  a.click()
+  URL.revokeObjectURL(url)
+}
