@@ -525,12 +525,19 @@ export default function VendorPage() {
               <div className="flex-1 h-px bg-line" />
             </div>
 
-            {/* Nueva orden */}
-            <button
-              onClick={startNewOrder}
-              className="btn-primary py-3 px-8 text-sm w-full sm:w-auto justify-center">
-              + Crear nueva orden
-            </button>
+            {/* Acciones finales */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => { startNewOrder(); setActiveTab('my_orders') }}
+                className="btn-secondary py-3 px-6 text-sm justify-center">
+                Mis pedidos
+              </button>
+              <button
+                onClick={startNewOrder}
+                className="btn-primary py-3 px-8 text-sm justify-center">
+                + Nueva orden
+              </button>
+            </div>
 
           </div>
         </div>
@@ -928,6 +935,7 @@ export default function VendorPage() {
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">#</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Fecha</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Cliente</th>
+                  <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3">Estado</th>
                   <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3">Unidades</th>
                   <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3 w-36">Acciones</th>
                 </tr>
@@ -946,6 +954,15 @@ export default function VendorPage() {
                       <div className="text-[11px] text-ink-3">
                         {[order.store?.name, order.store?.city].filter(Boolean).join(' · ')}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        order.status === 'DRAFT'     ? 'bg-gray-100 text-gray-500' :
+                        order.status === 'SENT'      ? 'bg-amber-50 text-amber-700' :
+                        order.status === 'CANCELLED' ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {order.status === 'DRAFT' ? 'Borrador' : order.status === 'SENT' ? 'Enviado' : order.status === 'CANCELLED' ? 'Cancelado' : order.status}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-center font-mono text-sm font-semibold text-ink">
                       {order.units}

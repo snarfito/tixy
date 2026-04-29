@@ -5,10 +5,10 @@ import fmt from '../utils/fmt'
 
 // ── Modal de Vista Rápida ────────────────────────────────────────────────────
 const STATUS_COLOR = {
-  draft:     'bg-gray-100 text-gray-500',
-  sent:      'bg-amber-50 text-amber-700',
-  confirmed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-red-50 text-red-500',
+  DRAFT:     'bg-blue-50 text-blue-600',
+  SENT:      'bg-amber-50 text-amber-700',
+  CONFIRMED: 'bg-green-50 text-green-700',
+  CANCELLED: 'bg-red-50 text-red-500',
 }
 
 function OrderDetailModal({ order, onClose }) {
@@ -49,8 +49,8 @@ function OrderDetailModal({ order, onClose }) {
             <span className="text-[11px] text-[#999]">&nbsp;·&nbsp;{order.vendor.contact_info}</span>
           )}
           <span className={`ml-auto inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_COLOR[order.status]}`}>
-            {order.status === 'draft' ? 'Borrador' : order.status === 'sent' ? 'Enviado' :
-             order.status === 'confirmed' ? 'Confirmado' : 'Cancelado'}
+            {order.status === 'DRAFT' ? 'Borrador' : order.status === 'SENT' ? 'Enviado' :
+             order.status === 'CONFIRMED' ? 'Confirmado' : 'Cancelado'}
           </span>
         </div>
 
@@ -161,11 +161,11 @@ function OrderDetailModal({ order, onClose }) {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-const STATUS_LABEL = { draft: 'Borrador', sent: 'Enviado', cancelled: 'Cancelado' }
+const STATUS_LABEL = { DRAFT: 'Borrador', SENT: 'Enviado', CANCELLED: 'Cancelado' }
 const STATUS_BADGE = {
-  draft:     'bg-gray-100 text-gray-500',
-  sent:      'bg-gold-light text-amber-700',
-  cancelled: 'bg-red-50 text-red-500',
+  DRAFT:     'bg-blue-50 text-blue-600',
+  SENT:      'bg-amber-50 text-amber-700',
+  CANCELLED: 'bg-red-50 text-red-500',
 }
 const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira','Manizales','Bucaramanga','Ibagué']
 
