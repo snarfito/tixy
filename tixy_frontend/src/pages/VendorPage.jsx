@@ -911,7 +911,7 @@ export default function VendorPage() {
                           PDF
                         </button>
                         {/* Editar — solo en DRAFT o SENT */}
-                        {(order.status === 'draft' || order.status === 'sent') && (
+                        {(order.status === 'DRAFT' || order.status === 'SENT') && (
                           <button
                             onClick={() => loadOrderForEdit(order.id)}
                             className="text-pink-dark text-xs px-2 py-1 rounded border border-pink/30 hover:bg-pink-light transition-colors font-semibold">
@@ -919,7 +919,7 @@ export default function VendorPage() {
                           </button>
                         )}
                         {/* Enviar — solo en DRAFT */}
-                        {order.status === 'draft' && (
+                        {order.status === 'DRAFT' && (
                           <button
                             onClick={() => handleSendFromList(order.id)}
                             disabled={sendingId === order.id}

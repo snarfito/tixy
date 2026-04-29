@@ -1,17 +1,23 @@
 -- =============================================================================
--- Migracion: Normalizar OrderStatus a mayúsculas (abr-2026)
--- Necesaria porque el enum Python usa mayúsculas pero la BD tenía minúsculas
--- Ejecutar UNA sola vez antes de desplegar el código actualizado
+-- Migracion: Normalizar OrderStatus ENUM en MySQL (abr-2026)
+-- CRÍTICO: Ejecutar PRIMERO antes de desplegar el código actualizado
 -- =============================================================================
 
--- 1. Verificar valores actuales (diagnostico)
-SELECT DISTINCT status FROM orders;
+-- 1. Renombrar columna status a status_old (guardar datos)
+ALTER TABLE orders CHANGE COLUMN status status_old VARCHAR(50);
 
--- 2. Normalizar valores a mayúsculas
-UPDATE orders SET status = 'DRAFT' WHERE LOWER(status) = 'draft';
-UPDATE orders SET status = 'SENT' WHERE LOWER(status) = 'sent';
-UPDATE orders SET status = 'CONFIRMED' WHERE LOWER(status) = 'confirmed';
-UPDATE orders SET status = 'CANCELLED' WHERE LOWER(status) = 'cancelled';
+-- 2. Crear nueva columna status con ENUM correcto (mayúsculas)
+ALTER TABLE orders ADD COLUMN status ENUM('DRAFT', 'SENT', 'CONFIRMED', 'CANCELLED') 
+  NOT NULL DEFAULT 'DRAFT' AFTER status_old;
 
--- 3. Verificar que la normalización fue exitosa
+-- 3. Migrar datos: convertir a mayúsculas
+UPDATE orders 
+SET status = UPPER(status_old) 
+WHERE status_old IS NOT NULL;
+
+-- 4. Eliminar columna antigua
+ALTER TABLE orders DROP COLUMN status_old;
+
+-- 5. Verificar resultado
 SELECT DISTINCT status FROM orders;
+SELECT COUNT(*) as total_orders FROM orders;
