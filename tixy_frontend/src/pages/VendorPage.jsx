@@ -94,6 +94,11 @@ export default function VendorPage() {
   async function loadOrderForEdit(orderId) {
     try {
       const order = await getOrder(orderId)
+      // Bloquear edición si la orden ya fue enviada
+      if (order.status === 'SENT') {
+        flash('err', 'No se puede editar una orden que ya ha sido enviada.')
+        return
+      }
       setCollectionId(order.collection_id)
       if (order.store) {
         setSelectedStore({
@@ -298,6 +303,11 @@ export default function VendorPage() {
       // Obtener la orden completa para acceder al email del cliente
       const fullOrder = await getOrder(orderId)
       const clientEmail = fullOrder.store?.client?.email || ''
+      
+      // Calcular resumen de referencias y unidades
+      const refCount = fullOrder.lines.length
+      const unitCount = fullOrder.lines.reduce((sum, ln) => sum + ln.quantity, 0)
+      
       setLastOrderId(orderId)
       setEmailInput(clientEmail)
       setEmailSent(false)
@@ -308,6 +318,8 @@ export default function VendorPage() {
         clientName:   clientName.trim() || '—',
         storeName:    storeName.trim()  || '—',
         city,
+        refCount,
+        unitCount,
       })
     } catch (err) {
       flash('err', err.response?.data?.detail || 'Error al enviar el pedido.')
@@ -321,8 +333,27 @@ export default function VendorPage() {
     setSendingId(orderId)
     try {
       await sendOrder(orderId)
-      await loadMyOrders()
-      flash('ok', 'Pedido enviado correctamente.')
+      // Obtener la orden completa para mostrar pantalla de éxito
+      const fullOrder = await getOrder(orderId)
+      const clientEmail = fullOrder.store?.client?.email || ''
+
+      // Calcular resumen de referencias y unidades
+      const refCount = fullOrder.lines.length
+      const unitCount = fullOrder.lines.reduce((sum, ln) => sum + ln.quantity, 0)
+
+      setLastOrderId(orderId)
+      setEmailInput(clientEmail)
+      setEmailSent(false)
+      setEmailError(null)
+      setSuccessOrder({
+        id:           orderId,
+        order_number: fullOrder.order_number,
+        clientName:   fullOrder.store?.client?.business_name || '—',
+        storeName:    fullOrder.store?.name  || '—',
+        city:         fullOrder.store?.city || '',
+        refCount,
+        unitCount,
+      })
     } catch (err) {
       flash('err', err.response?.data?.detail || 'Error al enviar el pedido.')
     } finally {
@@ -418,7 +449,7 @@ export default function VendorPage() {
             <h2 className="text-xl sm:text-2xl font-semibold text-ink mb-1">
               ¡Orden enviada!
             </h2>
-            <p className="text-ink-3 text-sm mb-8">
+            <p className="text-ink-3 text-sm mb-6">
               {successOrder.clientName}
               {successOrder.storeName !== successOrder.clientName && (
                 <> · <span className="text-ink-2">{successOrder.storeName}</span>
@@ -426,6 +457,25 @@ export default function VendorPage() {
                 </>
               )}
             </p>
+
+            {/* Resumen de productos */}
+            {(successOrder.refCount > 0 || successOrder.unitCount > 0) && (
+              <div className="w-full max-w-sm bg-pink-light border border-pink/20 rounded-xl p-4 mb-8 flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-pink-dark">{successOrder.refCount}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-ink-3 font-semibold">
+                    referencia{successOrder.refCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div className="w-px h-8 bg-pink/30" />
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-pink-dark">{successOrder.unitCount}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-ink-3 font-semibold">
+                    unidade{successOrder.unitCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Botón PDF (sin tarjeta de total — oculto al vendedor) */}
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-6">
@@ -910,8 +960,8 @@ export default function VendorPage() {
                           className="text-ink-3 hover:text-pink-dark text-xs px-2 py-1 rounded border border-line hover:border-pink/40 transition-colors disabled:opacity-40">
                           PDF
                         </button>
-                        {/* Editar — solo en DRAFT o SENT */}
-                        {(order.status === 'DRAFT' || order.status === 'SENT') && (
+                        {/* Editar — solo en DRAFT */}
+                        {order.status === 'DRAFT' && (
                           <button
                             onClick={() => loadOrderForEdit(order.id)}
                             className="text-pink-dark text-xs px-2 py-1 rounded border border-pink/30 hover:bg-pink-light transition-colors font-semibold">

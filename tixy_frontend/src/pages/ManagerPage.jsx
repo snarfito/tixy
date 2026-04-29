@@ -568,7 +568,7 @@ export default function ManagerPage() {
   }
 
   async function handleCancel(order) {
-    if (!confirm(`¿Cancelar el pedido #${order.order_number}?`)) return
+    if (!confirm(`¿Cancelar el pedido #${order.order_number}?\n\nEsta acción no se puede deshacer.`)) return
     try {
       const updated = await cancelOrder(order.id)
       setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
@@ -753,7 +753,8 @@ export default function ManagerPage() {
                       </td>
                       <td className="px-3 py-2.5 text-center" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1 flex-wrap">
-                          {(order.status === 'sent' || order.status === 'draft') && (
+                          {/* Cancelar — disponible en cualquier estado excepto ya cancelado */}
+                          {order.status !== 'cancelled' && (
                             <button onClick={() => handleCancel(order)}
                               title="Cancelar pedido"
                               className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-colors">
