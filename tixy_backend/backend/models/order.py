@@ -9,10 +9,10 @@ from core.database import Base
 
 
 class OrderStatus(str, enum.Enum):
-    DRAFT     = "draft"      # borrador, el vendedor aun no envio
-    SENT      = "sent"       # enviado por el vendedor, listo para trabajar
-    CONFIRMED = "confirmed"  # confirmado (legado, no se usa en la UI)
-    CANCELLED = "cancelled"  # cancelado por gerencia
+    DRAFT     = "DRAFT"      # borrador, el vendedor aun no envio
+    SENT      = "SENT"       # enviado por el vendedor, listo para trabajar
+    CONFIRMED = "CONFIRMED"  # confirmado (legado, no se usa en la UI)
+    CANCELLED = "CANCELLED"  # cancelado por gerencia
 
 
 class Order(Base):
