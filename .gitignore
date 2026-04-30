@@ -17,3 +17,7 @@ backend.zip
 
 # Secretos
 .env
+
+
+#Backups de BBDD
+backup*.sql
