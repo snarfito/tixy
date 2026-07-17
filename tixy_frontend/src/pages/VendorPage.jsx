@@ -45,6 +45,7 @@ export default function VendorPage() {
 
   const [submitting,  setSubmitting]  = useState(false)
   const [banner,      setBanner]      = useState(null)
+  const [fieldErrors, setFieldErrors] = useState({})   // { clientName?: bool, storeName?: bool }
   const [lastOrderId, setLastOrderId] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const [successOrder, setSuccessOrder] = useState(null)  // pantalla de éxito post-envío
@@ -60,7 +61,9 @@ export default function VendorPage() {
   const [editingOrder, setEditingOrder] = useState(null)    // { id, order_number } | null
   const [sendingId,    setSendingId]    = useState(null)    // order_id en proceso de envío desde lista
 
-  const refSearchRef = useRef(null)
+  const refSearchRef  = useRef(null)
+  const clientNameRef = useRef(null)
+  const storeNameRef  = useRef(null)
 
   // ── cargar mis pedidos ────────────────────────────────────────────────
   const loadMyOrders = useCallback(async () => {
@@ -88,6 +91,7 @@ export default function VendorPage() {
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
     setEditingOrder(null)
     setLastOrderId(null)
+    setFieldErrors({})
   }
 
   // ── cargar orden en el formulario para editar ───────────────────────────
@@ -207,16 +211,23 @@ export default function VendorPage() {
 
   function flash(type, msg) {
     setBanner({ type, msg })
-    setTimeout(() => setBanner(null), 3500)
+    setTimeout(() => setBanner(null), type === 'err' ? 5000 : 3500)
   }
 
   // ── Resolver el storeId (crear cliente si es nuevo) ───────────────────────
   async function resolveStoreId() {
     if (selectedStore?.id) return selectedStore.id
-    if (!clientName.trim() || !storeName.trim()) {
+    const missingClient = !clientName.trim()
+    const missingStore  = !storeName.trim()
+    if (missingClient || missingStore) {
+      setFieldErrors({ clientName: missingClient, storeName: missingStore })
       flash('err', 'Completa el nombre del cliente y del almacén.')
+      const target = missingClient ? clientNameRef.current : storeNameRef.current
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target?.focus()
       return null
     }
+    setFieldErrors({})
     const newClient = await createClient({
       business_name: clientName.trim(),
       nit:   nit.trim() || null,
@@ -550,7 +561,8 @@ export default function VendorPage() {
     <div className="max-w-3xl mx-auto">
 
       {banner && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium border
+        <div className={`fixed z-50 left-4 right-4 bottom-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-sm
+          px-4 py-3 rounded-lg text-sm font-medium border shadow-lg
           ${banner.type === 'ok'
             ? 'bg-green-50 text-green-700 border-green-200'
             : 'bg-red-50 text-red-600 border-red-200'}`}>
@@ -682,13 +694,19 @@ export default function VendorPage() {
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-1">Cliente</div>
-              <input className="input-base uppercase" value={clientName}
-                onChange={e => setClientName(e.target.value.toUpperCase())} placeholder="NOMBRE O RAZÓN SOCIAL" />
+              <input ref={clientNameRef}
+                className={`input-base uppercase ${fieldErrors.clientName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                value={clientName}
+                onChange={e => { setClientName(e.target.value.toUpperCase()); setFieldErrors(f => ({ ...f, clientName: false })) }}
+                placeholder="NOMBRE O RAZÓN SOCIAL" />
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-1">Nombre del almacén</div>
-              <input className="input-base uppercase" value={storeName}
-                onChange={e => setStoreName(e.target.value.toUpperCase())} placeholder="NOMBRE DEL ALMACÉN" />
+              <input ref={storeNameRef}
+                className={`input-base uppercase ${fieldErrors.storeName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                value={storeName}
+                onChange={e => { setStoreName(e.target.value.toUpperCase()); setFieldErrors(f => ({ ...f, storeName: false })) }}
+                placeholder="NOMBRE DEL ALMACÉN" />
             </div>
           </div>
 
