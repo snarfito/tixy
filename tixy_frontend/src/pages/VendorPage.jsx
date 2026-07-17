@@ -751,6 +751,7 @@ export default function VendorPage() {
                               rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                 {refResults.map(ref => {
                     const yaEnPedido = lines.some(l => l.refId === ref.id)
+                    const colName = collections.find(c => c.id === ref.collection_id)?.name
                     return (
                       <div key={ref.id}
                         onClick={() => !yaEnPedido && selectRef(ref)}
@@ -759,7 +760,10 @@ export default function VendorPage() {
                             ? 'opacity-50 cursor-not-allowed bg-surface'
                             : 'hover:bg-pink-light cursor-pointer'}`}>
                         <span className="font-mono text-xs font-semibold text-pink-dark w-14 shrink-0">{ref.code}</span>
-                        <span className="text-sm text-ink-2 flex-1">{ref.description}</span>
+                        <span className="text-sm text-ink-2 flex-1">
+                          {ref.description}
+                          {colName && <span className="block text-[11px] text-ink-3">{colName}</span>}
+                        </span>
                         {yaEnPedido
                           ? <span className="text-[10px] font-semibold text-ink-3 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full whitespace-nowrap">Ya en pedido</span>
                           : <span className="text-xs text-ink-3">{fmt(ref.base_price)}</span>
