@@ -188,6 +188,7 @@ export default function VendorPage() {
     setStoreName(store.name)
     setNit(client.nit || '')
     setTel(client.phone || '')
+    setCel(store.phone || '')
     setAddress(store.address || '')
     setCity(store.city || CITIES[0])
     setClientSearch('')
@@ -651,6 +652,10 @@ export default function VendorPage() {
                               setClientName(client.business_name)
                               setNit(client.nit || '')
                               setTel(client.phone || '')
+                              setStoreName('')
+                              setAddress('')
+                              setCel('')
+                              setSelectedStore(null)
                               setClientSearch('')
                               setShowClientDD(false)
                             }}
