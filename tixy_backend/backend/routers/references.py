@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.deps import require_admin, require_vendor
+from models.collection import Collection
 from models.reference import Reference
 from models.user import User
 from schemas.reference import (
@@ -32,6 +33,12 @@ def list_references(
         q = q.filter(Reference.is_active == True)
     if collection_id:
         q = q.filter(Reference.collection_id == collection_id)
+    else:
+        # Sin collection_id explícito (buscador del vendedor): solo mostrar
+        # referencias de colecciones activas. AdminPage siempre pasa
+        # collection_id explícito (incluso de colecciones inactivas para
+        # poder gestionarlas), así que ese flujo no pasa por este filtro.
+        q = q.join(Collection).filter(Collection.is_active == True)
     if category:
         q = q.filter(Reference.category == category)
     if search:
