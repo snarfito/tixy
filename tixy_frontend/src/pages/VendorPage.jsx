@@ -695,7 +695,7 @@ export default function VendorPage() {
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-1">Cliente</div>
               <input ref={clientNameRef}
-                className={`input-base uppercase ${fieldErrors.clientName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                className={`input-base uppercase ${fieldErrors.clientName ? '!border-red-500 !ring-1 !ring-red-400' : ''}`}
                 value={clientName}
                 onChange={e => { setClientName(e.target.value.toUpperCase()); setFieldErrors(f => ({ ...f, clientName: false })) }}
                 placeholder="NOMBRE O RAZÓN SOCIAL" />
@@ -703,7 +703,7 @@ export default function VendorPage() {
             <div>
               <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-1">Nombre del almacén</div>
               <input ref={storeNameRef}
-                className={`input-base uppercase ${fieldErrors.storeName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                className={`input-base uppercase ${fieldErrors.storeName ? '!border-red-500 !ring-1 !ring-red-400' : ''}`}
                 value={storeName}
                 onChange={e => { setStoreName(e.target.value.toUpperCase()); setFieldErrors(f => ({ ...f, storeName: false })) }}
                 placeholder="NOMBRE DEL ALMACÉN" />
