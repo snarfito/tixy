@@ -130,6 +130,7 @@ export default function VendorPage() {
         price: ln.unit_price,
       })))
       setEditingOrder({ id: order.id, order_number: order.order_number })
+      setFieldErrors({})
       setActiveTab('form')
     } catch {
       flash('err', 'No se pudo cargar el pedido para editar.')
