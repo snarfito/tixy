@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listOrders, cancelOrder, salesByReference, salesByVendor, salesByCollection, getCollections, getUsers, viewPdf, getOrder, getCategories, downloadExcelReport } from '../api/manager'
+import { listOrders, cancelOrder, deleteOrder, salesByReference, salesByVendor, salesByCollection, getCollections, getUsers, viewPdf, getOrder, getCategories, downloadExcelReport } from '../api/manager'
 import CityCombobox from '../components/CityCombobox'
 import fmt from '../utils/fmt'
+import { useAuthStore } from '../store/authStore'
 
 // ── Modal de Vista Rápida ────────────────────────────────────────────────────
 const STATUS_COLOR = {
@@ -428,6 +429,7 @@ function ComparativasSection({ data }) {
 // PÁGINA GERENCIA
 // ════════════════════════════════════════════════════════════════════════════
 export default function ManagerPage() {
+  const { user } = useAuthStore()
   const [collections, setCollections] = useState([])
   const [vendors,     setVendors]     = useState([])
   const [orders,      setOrders]      = useState([])
@@ -573,6 +575,15 @@ export default function ManagerPage() {
       const updated = await cancelOrder(order.id)
       setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
       flash('ok', `Pedido #${order.order_number} cancelado.`)
+    } catch (err) { flash('err', err.response?.data?.detail || 'Error.') }
+  }
+
+  async function handleDelete(order) {
+    if (!confirm(`¿Borrar el pedido #${order.order_number}?\n\nDesaparecerá de todos los listados y reportes. Esta acción no se puede deshacer.`)) return
+    try {
+      await deleteOrder(order.id)
+      setOrders(prev => prev.filter(o => o.id !== order.id))
+      flash('ok', `Pedido #${order.order_number} eliminado.`)
     } catch (err) { flash('err', err.response?.data?.detail || 'Error.') }
   }
 
@@ -759,6 +770,13 @@ export default function ManagerPage() {
                               title="Cancelar pedido"
                               className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-colors">
                               × Cancelar
+                            </button>
+                          )}
+                          {user?.is_superuser && (
+                            <button onClick={() => handleDelete(order)}
+                              title="Borrar pedido (superusuario)"
+                              className="text-xs px-2 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 transition-colors">
+                              🗑 Borrar
                             </button>
                           )}
                           <button

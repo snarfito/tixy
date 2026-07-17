@@ -21,3 +21,6 @@ backend.zip
 
 #Backups de BBDD
 backup*.sql
+
+# Datos / exportaciones
+*.csv

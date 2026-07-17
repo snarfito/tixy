@@ -47,6 +47,15 @@ def require_role(*roles: UserRole):
     return _check
 
 
+def require_superuser(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el superusuario puede realizar esta acción",
+        )
+    return current_user
+
+
 # Shortcuts
 require_admin   = require_role(UserRole.ADMIN)
 require_manager = require_role(UserRole.ADMIN, UserRole.MANAGER)

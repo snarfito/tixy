@@ -46,6 +46,9 @@ export const confirmOrder = (id) =>
 export const cancelOrder = (id) =>
   api.post(`/orders/${id}/cancel`).then(r => r.data)
 
+export const deleteOrder = (id) =>
+  api.delete(`/orders/${id}`).then(r => r.data)
+
 export const salesByReference = (params) =>
   api.get('/orders/summary/by-reference', { params }).then(r => r.data)
 

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from core.database import get_db
 from core.deps import require_admin
 from core.email import send_invitation_email
@@ -98,7 +99,7 @@ def create_user(
 
         # Generar token de invitación y enviar email
         raw_token = _generate_invitation_token(user.email, db)
-        activation_link = f"https://app.tixyglamour.com/activate?token={raw_token}"
+        activation_link = f"{settings.FRONTEND_URL}/activate?token={raw_token}"
         try:
             send_invitation_email(
                 to_email=user.email,
@@ -130,7 +131,7 @@ def send_user_invitation(
         raise HTTPException(status_code=403, detail="No se puede enviar invitación al superusuario")
 
     raw_token = _generate_invitation_token(user.email, db)
-    activation_link = f"https://app.tixyglamour.com/activate?token={raw_token}"
+    activation_link = f"{settings.FRONTEND_URL}/activate?token={raw_token}"
 
     try:
         send_invitation_email(

@@ -6,7 +6,7 @@ from sqlalchemy import func, cast, Date
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import get_db
-from core.deps import get_current_user, require_manager, require_vendor
+from core.deps import get_current_user, require_manager, require_superuser, require_vendor
 from models.order import Order, OrderLine, OrderStatus
 from models.reference import Reference
 from models.user import User, UserRole
@@ -33,7 +33,7 @@ def _load_order(db: Session, order_id: int) -> Order:
             joinedload(Order.vendor),
             joinedload(Order.store).joinedload(Store.client),
         )
-        .filter(Order.id == order_id)
+        .filter(Order.id == order_id, Order.deleted_at.is_(None))
         .first()
     )
     if not order:
@@ -63,7 +63,7 @@ def list_orders(
         joinedload(Order.vendor),
         joinedload(Order.store).joinedload(Store.client),
         joinedload(Order.lines),
-    )
+    ).filter(Order.deleted_at.is_(None))
 
     # vendedor solo ve sus propios pedidos
     if me.role == UserRole.VENDOR:
@@ -218,6 +218,19 @@ def cancel_order(
     return _load_order(db, order_id)
 
 
+@router.delete("/{order_id}", status_code=200)
+def delete_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_superuser),
+):
+    """Borrado lógico de un pedido. Solo el superusuario puede hacerlo."""
+    order = _load_order(db, order_id)
+    order.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"message": f"Pedido #{order.order_number} eliminado"}
+
+
 # ── Enviar PDF al cliente por email ──────────────────────────────────────────
 
 @router.post("/{order_id}/send-to-client", status_code=200)
@@ -230,20 +243,8 @@ def send_order_to_client(
     """Genera el PDF de la orden y lo envía por email al cliente."""
     from routers.pdf import _build_pdf
     from core.email import send_order_pdf_email
-    from models.client import Store
 
-    order = (
-        db.query(Order)
-        .options(
-            joinedload(Order.lines).joinedload(OrderLine.reference),
-            joinedload(Order.vendor),
-            joinedload(Order.store).joinedload(Store.client),
-        )
-        .filter(Order.id == order_id)
-        .first()
-    )
-    if not order:
-        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    order = _load_order(db, order_id)
     if me.role == UserRole.VENDOR and order.vendor_id != me.id:
         raise HTTPException(status_code=403, detail="Acceso denegado")
 
@@ -332,6 +333,7 @@ def download_excel_report(
         .filter(
             Order.collection_id == collection_id,
             Order.status != OrderStatus.CANCELLED,
+            Order.deleted_at.is_(None),
         )
         .group_by(User.id, Reference.id, Order.store_id)
         .order_by(User.full_name, Reference.code, Store.name)
@@ -527,7 +529,7 @@ def sales_by_reference(
         )
         .join(OrderLine, OrderLine.reference_id == Reference.id)
         .join(Order, Order.id == OrderLine.order_id)
-        .filter(Order.status != OrderStatus.CANCELLED)
+        .filter(Order.status != OrderStatus.CANCELLED, Order.deleted_at.is_(None))
     )
     if collection_id:
         q = q.filter(Order.collection_id == collection_id)
@@ -581,7 +583,7 @@ def sales_by_collection(
         )
         .join(Order, Order.collection_id == Collection.id)
         .join(OrderLine, OrderLine.order_id == Order.id)
-        .filter(Order.status != OrderStatus.CANCELLED)
+        .filter(Order.status != OrderStatus.CANCELLED, Order.deleted_at.is_(None))
         .group_by(Collection.id)
         .order_by(Collection.year.desc(), Collection.season.desc())
         .all()
@@ -597,7 +599,7 @@ def sales_by_collection(
         )
         .join(OrderLine, OrderLine.order_id == Order.id)
         .join(Reference, Reference.id == OrderLine.reference_id)
-        .filter(Order.status != OrderStatus.CANCELLED)
+        .filter(Order.status != OrderStatus.CANCELLED, Order.deleted_at.is_(None))
         .group_by(Order.collection_id, Reference.category)
         .all()
     )
@@ -649,7 +651,7 @@ def sales_by_vendor(
         )
         .join(Order, Order.vendor_id == User.id)
         .join(OrderLine, OrderLine.order_id == Order.id)
-        .filter(Order.status != OrderStatus.CANCELLED)
+        .filter(Order.status != OrderStatus.CANCELLED, Order.deleted_at.is_(None))
     )
     if collection_id:
         q = q.filter(Order.collection_id == collection_id)

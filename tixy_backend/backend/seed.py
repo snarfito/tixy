@@ -29,6 +29,8 @@ def run_migrations(connection):
     migrations = [
         # v1 — Superusuario
         "ALTER TABLE users ADD COLUMN is_superuser BOOLEAN NOT NULL DEFAULT FALSE",
+        # v2 — Borrado lógico de pedidos
+        "ALTER TABLE orders ADD COLUMN deleted_at DATETIME NULL",
     ]
     for sql in migrations:
         try:

@@ -488,7 +488,7 @@ def download_order_pdf(
             joinedload(Order.vendor),
             joinedload(Order.store).joinedload(Store.client),
         )
-        .filter(Order.id == order_id)
+        .filter(Order.id == order_id, Order.deleted_at.is_(None))
         .first()
     )
     if not order:

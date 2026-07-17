@@ -26,6 +26,7 @@ class Order(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     sent_at:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    deleted_at:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     vendor_id:     Mapped[int]         = mapped_column(ForeignKey("users.id"))
     store_id:      Mapped[int]         = mapped_column(ForeignKey("stores.id"))
