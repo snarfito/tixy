@@ -188,6 +188,7 @@ export default function VendorPage() {
 
   function selectStore(client, store) {
     setSelectedStore({ id: store.id, clientId: client.id, name: store.name, city: store.city, address: store.address })
+    setFieldErrors({})
     setClientName(client.business_name)
     setStoreName(store.name)
     setNit(client.nit || '')
@@ -668,6 +669,7 @@ export default function VendorPage() {
                               setAddress('')
                               setCel('')
                               setSelectedStore(null)
+                              setFieldErrors({})
                               setClientSearch('')
                               setShowClientDD(false)
                             }}
