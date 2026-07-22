@@ -77,6 +77,16 @@ export const setUserPassword = (id, newPassword) =>
 export const updateUser = (id, payload) =>
   api.patch(`/users/${id}`, payload).then(r => r.data)
 
+// Sesiones (solo superusuario)
+export const getSessions = (userId) =>
+  api.get('/sessions/', { params: userId ? { user_id: userId } : {} }).then(r => r.data)
+
+export const revokeSession = (sessionId) =>
+  api.delete(`/sessions/${sessionId}`).then(r => r.data)
+
+export const revokeUserSessions = (userId) =>
+  api.delete(`/sessions/user/${userId}`).then(r => r.data)
+
 // Clientes
 export const listClients = (search = '', includeInactive = false) =>
   api.get('/clients/', { params: { ...(search ? { search } : {}), include_inactive: includeInactive } }).then(r => r.data)
