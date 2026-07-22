@@ -7,9 +7,11 @@ import {
   inactivateClient, activateClient, inactivateStore, activateStore,
   getCategories, createCategory, updateCategory, deactivateCategory,
   setUserPassword,
+  getSessions, revokeSession, revokeUserSessions,
 } from '../api/admin'
 import fmt from '../utils/fmt'
 import CityCombobox from '../components/CityCombobox'
+import { useAuthStore } from '../store/authStore'
 
 // CATEGORIES ya no es estatico — cada seccion carga desde /categories/
 
@@ -1109,6 +1111,127 @@ function UsersSection() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// SESIONES (solo superusuario)
+// ════════════════════════════════════════════════════════════════════════════
+function fmtRelativeTime(isoString) {
+  const diffMs = Date.now() - new Date(isoString).getTime()
+  const diffMin = Math.round(diffMs / 60000)
+  if (diffMin < 1) return 'hace unos segundos'
+  if (diffMin < 60) return `hace ${diffMin} min`
+  const diffH = Math.round(diffMin / 60)
+  if (diffH < 24) return `hace ${diffH}h`
+  const diffD = Math.round(diffH / 24)
+  return `hace ${diffD}d`
+}
+
+function SessionsSection() {
+  const { user: currentUser }   = useAuthStore()
+  const [sessions, setSessions] = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [banner,   setBanner]   = useState(null)
+
+  function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3500) }
+
+  function loadSessions() {
+    setLoading(true)
+    getSessions().then(setSessions).finally(() => setLoading(false))
+  }
+
+  // `loading` ya inicia en `true`, así que la carga inicial no necesita
+  // volver a marcarlo (evita una llamada a setState síncrona dentro del
+  // efecto, señalada por react-hooks/set-state-in-effect).
+  useEffect(() => {
+    getSessions().then(setSessions).finally(() => setLoading(false))
+  }, [])
+
+  async function handleRevoke(session) {
+    const isOwnSession = session.user_id === currentUser?.id
+    const confirmMsg = isOwnSession
+      ? 'Esto cerrará tu propia sesión actual y tendrás que volver a iniciar sesión. ¿Continuar?'
+      : `¿Cerrar la sesión de ${session.user_full_name} en "${session.device_label}"?`
+    if (!window.confirm(confirmMsg)) return
+    try {
+      await revokeSession(session.id)
+      flash('ok', 'Sesión cerrada.')
+      loadSessions()
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al cerrar la sesión.')
+    }
+  }
+
+  async function handleRevokeAllForUser(session) {
+    const isOwnUser = session.user_id === currentUser?.id
+    const confirmMsg = isOwnUser
+      ? 'Esto cerrará TODAS tus sesiones, incluida esta. ¿Continuar?'
+      : `¿Cerrar TODAS las sesiones de ${session.user_full_name}?`
+    if (!window.confirm(confirmMsg)) return
+    try {
+      await revokeUserSessions(session.user_id)
+      flash('ok', `Sesiones de ${session.user_full_name} cerradas.`)
+      loadSessions()
+    } catch (err) {
+      flash('err', err.response?.data?.detail || 'Error al cerrar las sesiones.')
+    }
+  }
+
+  return (
+    <div>
+      {banner && (
+        <div className={`mb-4 px-4 py-2.5 rounded-lg text-sm font-medium border
+          ${banner.type === 'ok' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+          {banner.msg}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <span className="text-xs text-ink-3">
+          {sessions.length} sesión{sessions.length !== 1 ? 'es' : ''} activa{sessions.length !== 1 ? 's' : ''}
+        </span>
+        <button onClick={loadSessions} className="btn-secondary text-xs px-3 py-1.5">↻ Actualizar</button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-line">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-pink-light border-b border-line">
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Usuario</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Dispositivo</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">IP</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Inició sesión</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-pink-dark">Última actividad</th>
+              <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-pink-dark w-32">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={6} className="text-center py-10 text-ink-3 text-sm">Cargando…</td></tr>
+            ) : sessions.length === 0 ? (
+              <tr><td colSpan={6} className="text-center py-10 text-ink-3 text-sm">No hay sesiones activas.</td></tr>
+            ) : sessions.map(s => (
+              <tr key={s.id} className="border-b border-line hover:bg-surface">
+                <td className="px-4 py-2.5 text-sm font-medium text-ink">
+                  {s.user_full_name}<br /><span className="text-ink-3 text-xs">{s.user_email}</span>
+                </td>
+                <td className="px-4 py-2.5 text-sm text-ink-2">{s.device_label}</td>
+                <td className="px-4 py-2.5 text-sm text-ink-3">{s.ip_address}</td>
+                <td className="px-4 py-2.5 text-sm text-ink-3">{fmtRelativeTime(s.created_at)}</td>
+                <td className="px-4 py-2.5 text-sm text-ink-3">{fmtRelativeTime(s.last_seen_at)}</td>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center justify-center gap-1">
+                    <ActionBtn onClick={() => handleRevoke(s)} title="Cerrar esta sesión" danger>🗑</ActionBtn>
+                    <ActionBtn onClick={() => handleRevokeAllForUser(s)} title="Cerrar todas las sesiones de este usuario" danger>⛔</ActionBtn>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // CLIENTES
 // ════════════════════════════════════════════════════════════════════════════
 const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira','Manizales','Bucaramanga','Ibágué']
@@ -1606,7 +1729,7 @@ function ClientsSection() {
 // ════════════════════════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
-const TABS = [
+const BASE_TABS = [
   { id: 'refs',    label: 'Referencias', short: 'Refs',    icon: '≡' },
   { id: 'cats',    label: 'Categorías',  short: 'Cats',    icon: '🏷' },
   { id: 'cols',    label: 'Colecciones', short: 'Cols',    icon: '📦' },
@@ -1616,6 +1739,11 @@ const TABS = [
 
 export default function AdminPage() {
   const [tab, setTab] = useState('refs')
+  const { user: currentUser } = useAuthStore()
+
+  const tabs = currentUser?.is_superuser
+    ? [...BASE_TABS, { id: 'sessions', label: 'Sesiones', short: 'Sesiones', icon: '🔐' }]
+    : BASE_TABS
 
   return (
     <div>
@@ -1625,7 +1753,7 @@ export default function AdminPage() {
       </div>
 
       <div className="flex gap-0 border-b border-line mb-4 sm:mb-6 overflow-x-auto scrollbar-none">
-        {TABS.map(t => (
+        {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-1 px-3 sm:px-5 py-2.5 sm:py-3
               text-[11px] sm:text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap flex-1 sm:flex-none justify-center sm:justify-start
@@ -1637,11 +1765,12 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {tab === 'refs'    && <RefsSection />}
-      {tab === 'cats'    && <CatsSection />}
-      {tab === 'cols'    && <ColsSection />}
-      {tab === 'clients' && <ClientsSection />}
-      {tab === 'users'   && <UsersSection />}
+      {tab === 'refs'     && <RefsSection />}
+      {tab === 'cats'     && <CatsSection />}
+      {tab === 'cols'     && <ColsSection />}
+      {tab === 'clients'  && <ClientsSection />}
+      {tab === 'users'    && <UsersSection />}
+      {tab === 'sessions' && currentUser?.is_superuser && <SessionsSection />}
     </div>
   )
 }
