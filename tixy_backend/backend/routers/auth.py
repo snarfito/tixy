@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,9 +13,11 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from core.database import get_db
 from core.deps import get_current_user
+from core.device_label import parse_device_label
 from core.email import send_password_reset_email
 from core.security import create_access_token, hash_password, verify_password
 from models.password_reset import PasswordResetToken
+from models.session import UserSession
 from models.user import User, UserRole
 from schemas.user import TokenOut, UserCreate, UserOut
 
@@ -56,7 +59,23 @@ def login(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role})
+    jti   = str(uuid.uuid4())
+    token = create_access_token({"sub": str(user.id), "role": user.role, "jti": jti})
+
+    now        = datetime.now(timezone.utc)
+    user_agent = request.headers.get("user-agent", "")
+    db.add(UserSession(
+        user_id=user.id,
+        jti=jti,
+        user_agent=user_agent,
+        device_label=parse_device_label(user_agent),
+        ip_address=request.client.host if request.client else "",
+        created_at=now,
+        last_seen_at=now,
+        expires_at=now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    ))
+    db.commit()
+
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 
 
