@@ -22,12 +22,14 @@ El único chequeo per-request contra DB es `user.is_active`.
 
 Esta funcionalidad es visible y utilizable **únicamente por usuarios con
 `is_superuser = True`** (hoy solo `fredy.hortua@gmail.com`), no por todos los
-`ADMIN`. Se implementa un nuevo guard `require_superuser` en `core/deps.py`,
-análogo al `require_admin` ya existente.
+`ADMIN`. Se usa el guard `require_superuser` en `core/deps.py` — al
+implementar se confirmó que ya existía en el código previo a este feature
+(no hubo que crearlo), análogo al `require_admin` ya existente.
 
 ## Modelo de datos
 
-Nueva tabla `sessions`:
+Nueva tabla `user_sessions` (nombre elegido en la implementación; el diseño
+original decía `sessions`):
 
 | Campo | Tipo | Notas |
 |---|---|---|
@@ -80,7 +82,8 @@ El lookup de sesión por `jti` es una consulta indexada O(1), del mismo tipo
 que el `db.get(User, user_id)` que `get_current_user` ya hace hoy en cada
 request — no escala con el número de usuarios registrados, sino con
 requests/segundo contra la DB, que a esta escala (app B2B interna) es
-insignificante para un plan compartido de Postgres en Railway.
+insignificante para el plan de MySQL en Railway (el proyecto usa MySQL, no
+Postgres — corrección respecto a la versión original de este documento).
 
 El write de `last_seen_at` en cada request sí sería costoso sin el throttle
 propuesto (bloat de WAL/autovacuum); con el throttle de 60s el costo se
@@ -88,15 +91,19 @@ vuelve despreciable independientemente de la escala de usuarios.
 
 ## Endpoints nuevos
 
-Nuevo router `routers/sessions.py`, protegido con `require_superuser`:
+Nuevo router `routers/sessions.py`, protegido con `require_superuser`. Nota:
+la implementación usa el prefijo `/sessions` (no `/admin/sessions` como
+decía la versión original de este documento) — este proyecto no tiene una
+convención de prefijo `/admin` para rutas del backend, "admin" es puramente
+un concepto de rutas del frontend (`/admin`) más el guard de rol/superusuario:
 
-- **`GET /admin/sessions`** — lista todas las sesiones activas (no
+- **`GET /sessions/`** — lista todas las sesiones activas (no
   revocadas, no expiradas) de todos los usuarios. Devuelve por cada una:
   usuario (nombre/email), `device_label`, `ip_address`, `created_at`,
   `last_seen_at`. Parámetro opcional `?user_id=` para filtrar por usuario.
-- **`DELETE /admin/sessions/{session_id}`** — revoca esa sesión puntual
+- **`DELETE /sessions/{session_id}`** — revoca esa sesión puntual
   (`revoked_at = now()`). Idempotente.
-- **`DELETE /admin/sessions/user/{user_id}`** — revoca todas las sesiones
+- **`DELETE /sessions/user/{user_id}`** — revoca todas las sesiones
   activas de un usuario de una vez (atajo para el caso de incidente, sin
   necesidad de desactivar la cuenta con `is_active`).
 
@@ -126,7 +133,7 @@ Nueva sección **"Sesiones"** dentro de "Administración", visible solo si
 - **Token revocado mientras hay una petición en curso:** la siguiente
   llamada recibe 401, igual que el comportamiento actual con
   `is_active=False`.
-- **No-superuser golpea `/admin/sessions/*` directamente:** 403 vía
+- **No-superuser golpea `/sessions/*` directamente:** 403 vía
   `require_superuser`, mismo patrón que `require_admin` en `routers/users.py`.
 
 ## Fuera de alcance
