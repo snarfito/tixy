@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 
+from core.client_ip import get_client_ip
 from core.database import get_db
 from core.security import decode_token
 from models.session import UserSession
@@ -54,7 +55,7 @@ def get_current_user(
     )
     if now.replace(tzinfo=None) - last_seen_naive > timedelta(seconds=_LAST_SEEN_THROTTLE_SECONDS):
         session.last_seen_at = now
-        current_ip = request.client.host if request.client else ""
+        current_ip = get_client_ip(request)
         if current_ip and current_ip != session.ip_address:
             session.ip_address = current_ip
         db.commit()

@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
+from core.client_ip import get_client_ip
 from core.config import settings
 from core.database import get_db
 from core.deps import get_current_user
@@ -22,7 +22,7 @@ from models.user import User, UserRole
 from schemas.user import TokenOut, UserCreate, UserOut
 
 router   = APIRouter(prefix="/auth", tags=["auth"])
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=get_client_ip)
 
 
 # ── Schemas locales (simples, no necesitan archivo propio) ────────────────────
@@ -69,7 +69,7 @@ def login(
         jti=jti,
         user_agent=user_agent,
         device_label=parse_device_label(user_agent),
-        ip_address=request.client.host if request.client else "",
+        ip_address=get_client_ip(request),
         created_at=now,
         last_seen_at=now,
         expires_at=now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),

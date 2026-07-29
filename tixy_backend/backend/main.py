@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
+from core.client_ip import get_client_ip
 from core.config import settings
 from core.database import Base, engine
 from models import password_reset, session  # noqa: F401 — necesario para que create_all cree la tabla
@@ -14,7 +14,7 @@ from routers import auth, users, collections, references, clients, orders, pdf, 
 Base.metadata.create_all(bind=engine)
 
 # ── Rate limiter ─────────────────────────────────────────────────────────
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_client_ip)
 
 app = FastAPI(
     title=settings.APP_NAME,
