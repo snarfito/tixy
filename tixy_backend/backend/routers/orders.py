@@ -2,11 +2,12 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, cast, Date
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import get_db
 from core.deps import get_current_user, require_manager, require_superuser, require_vendor
+from core.timezone import bogota_day_end_utc, bogota_day_start_utc
 from models.order import Order, OrderLine, OrderStatus
 from models.reference import Reference
 from models.user import User, UserRole
@@ -79,9 +80,9 @@ def list_orders(
         store_ids = db.query(Store.id).filter(Store.city.ilike(f"%{city}%")).subquery()
         q = q.filter(Order.store_id.in_(store_ids))
     if date_from:
-        q = q.filter(cast(Order.created_at, Date) >= date_from)
+        q = q.filter(Order.created_at >= bogota_day_start_utc(date_from))
     if date_to:
-        q = q.filter(cast(Order.created_at, Date) <= date_to)
+        q = q.filter(Order.created_at <= bogota_day_end_utc(date_to))
 
     return q.order_by(Order.created_at.desc()).all()
 
@@ -538,9 +539,9 @@ def sales_by_reference(
     if category:
         q = q.filter(Reference.category == category)
     if date_from:
-        q = q.filter(cast(Order.created_at, Date) >= date_from)
+        q = q.filter(Order.created_at >= bogota_day_start_utc(date_from))
     if date_to:
-        q = q.filter(cast(Order.created_at, Date) <= date_to)
+        q = q.filter(Order.created_at <= bogota_day_end_utc(date_to))
 
     rows = q.group_by(Reference.id).order_by(func.sum(OrderLine.quantity).desc()).all()
     return [
@@ -656,9 +657,9 @@ def sales_by_vendor(
     if collection_id:
         q = q.filter(Order.collection_id == collection_id)
     if date_from:
-        q = q.filter(cast(Order.created_at, Date) >= date_from)
+        q = q.filter(Order.created_at >= bogota_day_start_utc(date_from))
     if date_to:
-        q = q.filter(cast(Order.created_at, Date) <= date_to)
+        q = q.filter(Order.created_at <= bogota_day_end_utc(date_to))
 
     rows = q.group_by(User.id).all()
     return [

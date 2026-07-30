@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { listOrders, cancelOrder, deleteOrder, salesByReference, salesByVendor, salesByCollection, getCollections, getUsers, viewPdf, getOrder, getCategories, downloadExcelReport } from '../api/manager'
 import CityCombobox from '../components/CityCombobox'
 import fmt from '../utils/fmt'
+import { nowInColombia, toLocalISODate } from '../utils/timezone'
 import { useAuthStore } from '../store/authStore'
 
 // ── Modal de Vista Rápida ────────────────────────────────────────────────────
@@ -471,10 +472,12 @@ export default function ManagerPage() {
     }
   }
 
-  // Calcula las fechas según el período seleccionado
+  // Calcula las fechas según el período seleccionado, siempre en hora Colombia
+  // (no la del navegador ni UTC), para que "Hoy" coincida con el día real
+  // en Colombia sin importar la zona horaria del dispositivo del cliente.
   function getDateParams() {
-    const toISO = d => d.toISOString().slice(0, 10)
-    const hoy   = new Date()
+    const toISO = toLocalISODate
+    const hoy   = nowInColombia()
     if (fPeriod === 'hoy') {
       const d = toISO(hoy)
       return { date_from: d, date_to: d }
