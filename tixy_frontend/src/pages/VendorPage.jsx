@@ -411,6 +411,7 @@ export default function VendorPage() {
     setNit(''); setTel(''); setCel('')
     setCity('Medellín')
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
+    setEditingOrder(null)
   }
 
   // Resetea todo y vuelve al formulario desde la pantalla de éxito
@@ -425,6 +426,7 @@ export default function VendorPage() {
     setNit(''); setTel(''); setCel('')
     setCity('Medellín')
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
+    setEditingOrder(null)
   }
 
   // ── Pantalla de éxito post-envío ─────────────────────────────────────────
@@ -600,9 +602,16 @@ export default function VendorPage() {
 
         {/* Banner de edición activa */}
         {editingOrder && (
-          <div className="px-5 py-2.5 bg-blue-50 border-b border-blue-200 flex items-center gap-2">
-            <span className="text-blue-600 text-xs font-semibold">✏️ Editando pedido #{editingOrder.order_number}</span>
-            <span className="text-blue-400 text-xs">Los cambios no se envían hasta que presiones "Guardar y enviar"</span>
+          <div className="px-5 py-2.5 bg-blue-50 border-b border-blue-200 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 text-xs font-semibold">✏️ Estás editando el pedido #{editingOrder.order_number}</span>
+              <span className="text-blue-400 text-xs">Esto NO es un pedido nuevo — lo que envíes reemplazará este pedido.</span>
+            </div>
+            <button
+              onClick={() => { resetForm(); setActiveTab('my_orders') }}
+              className="text-xs font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900">
+              Cancelar edición y empezar de cero
+            </button>
           </div>
         )}
 
