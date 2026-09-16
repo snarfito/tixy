@@ -506,6 +506,7 @@ export default function ManagerPage() {
       .then(([cols, users]) => {
         setCollections(cols)
         setVendors(users.filter(u => u.is_active))
+        if (cols.length) setFCol(String(cols[0].id))  // colección más reciente por defecto
       })
     // comparativas: independiente de filtros
     salesByCollection().then(setColSales).catch(() => {})
