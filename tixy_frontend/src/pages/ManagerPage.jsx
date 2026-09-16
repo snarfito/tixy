@@ -439,6 +439,7 @@ export default function ManagerPage() {
   const [colSales,    setColSales]    = useState([])   // comparativas
   const [categories,   setCategories]  = useState([])   // categorias dinamicas
   const [loading,     setLoading]     = useState(true)
+  const [colReady,    setColReady]    = useState(false)  // evita fetch de pedidos antes de fijar la colección por defecto
   const [banner,      setBanner]      = useState(null)
   const [activeTab,   setActiveTab]   = useState('pedidos')  // 'pedidos' | 'comparativas'
 
@@ -508,6 +509,7 @@ export default function ManagerPage() {
         setVendors(users.filter(u => u.is_active))
         if (cols.length) setFCol(String(cols[0].id))  // colección más reciente por defecto
       })
+      .finally(() => setColReady(true))
     // comparativas: independiente de filtros
     salesByCollection().then(setColSales).catch(() => {})
     getCategories(true).then(cats => setCategories(cats.map(c => c.name))).catch(() => {})
@@ -543,7 +545,7 @@ export default function ManagerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fCol, fStatus, fCity, fVendor, fCategory, fPeriod, fDateFrom, fDateTo])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { if (colReady) loadData() }, [loadData, colReady])
 
   const [downloading,  setDownloading]  = useState({})
   const [viewOrder,    setViewOrder]    = useState(null)   // pedido detallado en vista rápida
