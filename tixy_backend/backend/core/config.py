@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     # URL del frontend — para generar el link de reset
     FRONTEND_URL: str = "https://app.tixyglamour.com"
 
+    # Cloudflare R2 — almacenamiento de imagenes del catalogo
+    R2_ACCOUNT_ID:         str = ""
+    R2_ACCESS_KEY_ID:      str = ""
+    R2_SECRET_ACCESS_KEY:  str = ""
+    R2_BUCKET:             str = ""
+    R2_PUBLIC_BASE_URL:    str = ""
+
     @property
     def database_url(self) -> str:
         return (
