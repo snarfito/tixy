@@ -6,13 +6,16 @@ const NAV = {
     { to: '/pedido',   label: 'Orden de Pedido', icon: '📋' },
     { to: '/admin',    label: 'Administración',  icon: '⚙' },
     { to: '/gerencia', label: 'Gerencia',         icon: '📊' },
+    { to: '/catalogo', label: 'Catálogo',         icon: '🖼' },
   ],
   manager: [
     { to: '/gerencia', label: 'Gerencia', icon: '📊' },
     { to: '/pedido',   label: 'Orden de Pedido', icon: '📋' },
+    { to: '/catalogo', label: 'Catálogo', icon: '🖼' },
   ],
   vendor:  [
-    { to: '/pedido', label: 'Orden de Pedido', icon: '📋' },
+    { to: '/pedido',   label: 'Orden de Pedido', icon: '📋' },
+    { to: '/catalogo', label: 'Catálogo', icon: '🖼' },
   ],
 }
 

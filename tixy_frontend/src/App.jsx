@@ -5,6 +5,7 @@ import ActivateAccountPage  from './pages/ActivateAccountPage'
 import AdminPage            from './pages/AdminPage'
 import ManagerPage        from './pages/ManagerPage'
 import VendorPage         from './pages/VendorPage'
+import CatalogPage        from './pages/CatalogPage'
 import AppLayout          from './components/AppLayout'
 import ProtectedRoute     from './components/ProtectedRoute'
 
@@ -36,6 +37,11 @@ export default function App() {
           <Route path="/pedido" element={
             <ProtectedRoute roles={['admin','vendor','manager']}>
               <VendorPage />
+            </ProtectedRoute>
+          }/>
+          <Route path="/catalogo" element={
+            <ProtectedRoute roles={['admin','vendor','manager']}>
+              <CatalogPage />
             </ProtectedRoute>
           }/>
         </Route>
