@@ -5,3 +5,4 @@ from models.category import Category
 from models.reference import Reference
 from models.client import Client, Store
 from models.order import Order, OrderEdit, OrderLine
+from models.catalog_image import CatalogImage, catalog_image_references
