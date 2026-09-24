@@ -11,6 +11,7 @@ import {
 } from '../api/admin'
 import fmt from '../utils/fmt'
 import CityCombobox from '../components/CityCombobox'
+import CatalogSection from '../components/admin/CatalogSection'
 import { useAuthStore } from '../store/authStore'
 
 // CATEGORIES ya no es estatico — cada seccion carga desde /categories/
@@ -1749,6 +1750,7 @@ const BASE_TABS = [
   { id: 'refs',    label: 'Referencias', short: 'Refs',    icon: '≡' },
   { id: 'cats',    label: 'Categorías',  short: 'Cats',    icon: '🏷' },
   { id: 'cols',    label: 'Colecciones', short: 'Cols',    icon: '📦' },
+  { id: 'catalog', label: 'Colección',   short: 'Catálogo', icon: '🖼' },
   { id: 'clients', label: 'Clientes',    short: 'Clientes', icon: '🏪' },
   { id: 'users',   label: 'Usuarios',    short: 'Usuarios', icon: '👤' },
 ]
@@ -1784,6 +1786,7 @@ export default function AdminPage() {
       {tab === 'refs'     && <RefsSection />}
       {tab === 'cats'     && <CatsSection />}
       {tab === 'cols'     && <ColsSection />}
+      {tab === 'catalog'  && <CatalogSection />}
       {tab === 'clients'  && <ClientsSection />}
       {tab === 'users'    && <UsersSection />}
       {tab === 'sessions' && currentUser?.is_superuser && <SessionsSection />}
