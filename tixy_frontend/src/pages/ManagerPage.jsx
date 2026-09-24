@@ -628,7 +628,7 @@ export default function ManagerPage() {
   const totalOrders  = orders.length
   const totalUnits   = orders.reduce((s, o) => s + (o.units ?? 0), 0)
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0)
-  const pending      = orders.filter(o => o.status === 'sent').length
+  const pending      = orders.filter(o => o.status === 'SENT').length
 
   const maxRef    = refSales[0]?.total_value    || 1
   const maxVendor = vendorSales[0]?.total_value || 1
@@ -802,7 +802,7 @@ export default function ManagerPage() {
                       <td className="px-3 py-2.5 text-center" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1 flex-wrap">
                           {/* Cancelar — disponible en cualquier estado excepto ya cancelado */}
-                          {order.status !== 'cancelled' && (
+                          {order.status !== 'CANCELLED' && (
                             <button onClick={() => handleCancel(order)}
                               title="Cancelar pedido"
                               className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-colors">
