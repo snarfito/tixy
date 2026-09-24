@@ -8,7 +8,7 @@ from core.client_ip import get_client_ip
 from core.config import settings
 from core.database import Base, engine
 from models import password_reset, session  # noqa: F401 — necesario para que create_all cree la tabla
-from routers import auth, users, collections, references, clients, orders, pdf, categories, sessions
+from routers import auth, users, collections, references, clients, orders, pdf, categories, sessions, catalog_images
 
 # Crea tablas si no existen (en producción usarás Alembic)
 Base.metadata.create_all(bind=engine)
@@ -52,6 +52,7 @@ app.include_router(clients.router)
 app.include_router(orders.router)
 app.include_router(pdf.router)
 app.include_router(sessions.router)
+app.include_router(catalog_images.router)
 
 
 @app.get("/health")
