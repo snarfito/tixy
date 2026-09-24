@@ -105,10 +105,12 @@ export default function VendorPage() {
   async function loadOrderForEdit(orderId) {
     try {
       const order = await getOrder(orderId)
+      const isOwner = order.vendor_id === user?.id
       // Editor autorizado editando pedido ajeno: puede editar aunque ya esté enviado
-      const asEditor = order.vendor_id !== user?.id && (user?.can_edit_orders || user?.is_superuser)
-      // Bloquear edición si la orden ya fue enviada
-      if (order.status === 'SENT' && !asEditor) {
+      const asEditor = !isOwner && (user?.can_edit_orders || user?.is_superuser)
+      // El dueño también puede editar un pedido ya enviado (vuelve a Borrador, ver banner);
+      // solo se bloquea a quien no es ni dueño ni editor autorizado.
+      if (order.status === 'SENT' && !asEditor && !isOwner) {
         flash('err', 'No se puede editar una orden que ya ha sido enviada.')
         return
       }
@@ -138,7 +140,7 @@ export default function VendorPage() {
         qty:   ln.quantity,
         price: ln.unit_price,
       })))
-      setEditingOrder({ id: order.id, order_number: order.order_number, asEditor })
+      setEditingOrder({ id: order.id, order_number: order.order_number, asEditor, wasSent: order.status === 'SENT' })
       if (asEditor) setResendEmail(order.client_email || order.store?.client?.email || '')
       setFieldErrors({})
       setActiveTab('form')
@@ -639,7 +641,9 @@ export default function VendorPage() {
               <span className="text-blue-400 text-xs">
                 {editingOrder.asEditor
                   ? 'Edición autorizada: quedará registrada con tu nombre y el motivo.'
-                  : 'Esto NO es un pedido nuevo — lo que envíes reemplazará este pedido.'}
+                  : editingOrder.wasSent
+                    ? 'Este pedido ya estaba enviado — al guardar volverá a Borrador y deberás reenviarlo al cliente.'
+                    : 'Esto NO es un pedido nuevo — lo que envíes reemplazará este pedido.'}
               </span>
             </div>
             <button
@@ -1073,8 +1077,8 @@ export default function VendorPage() {
                           className="text-ink-3 hover:text-pink-dark text-xs px-2 py-1 rounded border border-line hover:border-pink/40 transition-colors disabled:opacity-40">
                           PDF
                         </button>
-                        {/* Editar — solo en DRAFT */}
-                        {order.status === 'DRAFT' && (
+                        {/* Editar — DRAFT o SENT (CANCELLED no se puede editar) */}
+                        {(order.status === 'DRAFT' || order.status === 'SENT') && (
                           <button
                             onClick={() => loadOrderForEdit(order.id)}
                             className="text-pink-dark text-xs px-2 py-1 rounded border border-pink/30 hover:bg-pink-light transition-colors font-semibold">
