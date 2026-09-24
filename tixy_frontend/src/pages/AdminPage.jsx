@@ -1750,7 +1750,7 @@ const BASE_TABS = [
   { id: 'refs',    label: 'Referencias', short: 'Refs',    icon: '≡' },
   { id: 'cats',    label: 'Categorías',  short: 'Cats',    icon: '🏷' },
   { id: 'cols',    label: 'Colecciones', short: 'Cols',    icon: '📦' },
-  { id: 'catalog', label: 'Colección',   short: 'Catálogo', icon: '🖼' },
+  { id: 'catalog', label: 'Catálogo',    short: 'Catálogo', icon: '🖼' },
   { id: 'clients', label: 'Clientes',    short: 'Clientes', icon: '🏪' },
   { id: 'users',   label: 'Usuarios',    short: 'Usuarios', icon: '👤' },
 ]
