@@ -3,12 +3,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core.database import get_db
 from core.deps import get_current_user, require_manager, require_superuser, require_vendor
+from core.order_diff import summarize_line_changes
 from core.timezone import bogota_day_end_utc, bogota_day_start_utc
-from models.order import Order, OrderLine, OrderStatus
+from models.order import Order, OrderEdit, OrderLine, OrderStatus
 from models.reference import Reference
 from models.user import User, UserRole
 from schemas.order import OrderCreate, OrderOut, OrderSummary, OrderUpdate
@@ -33,6 +34,7 @@ def _load_order(db: Session, order_id: int) -> Order:
             joinedload(Order.lines).joinedload(OrderLine.reference),
             joinedload(Order.vendor),
             joinedload(Order.store).joinedload(Store.client),
+            selectinload(Order.edits).joinedload(OrderEdit.user),
         )
         .filter(Order.id == order_id, Order.deleted_at.is_(None))
         .first()
@@ -94,7 +96,7 @@ def get_order(
     me: User    = Depends(get_current_user),
 ):
     order = _load_order(db, order_id)
-    if me.role == UserRole.VENDOR and order.vendor_id != me.id:
+    if me.role == UserRole.VENDOR and order.vendor_id != me.id and not me.can_edit_orders:
         raise HTTPException(status_code=403, detail="Acceso denegado")
     return order
 
@@ -131,6 +133,14 @@ def create_order(
     return _load_order(db, order.id)
 
 
+def _lines_map(pairs) -> dict[str, tuple[int, float]]:
+    """[(código, cantidad, precio)] -> {código: (cantidad total, precio)}"""
+    out: dict[str, tuple[int, float]] = {}
+    for code, qty, price in pairs:
+        out[code] = (out.get(code, (0, 0))[0] + qty, price)
+    return out
+
+
 @router.patch("/{order_id}", response_model=OrderOut)
 def update_order(
     order_id: int,
@@ -138,29 +148,39 @@ def update_order(
     db: Session = Depends(get_db),
     me: User    = Depends(require_vendor),
 ):
-    """Vendedor edita un pedido propio en estado DRAFT o SENT.
-    Si estaba SENT, regresa a DRAFT automáticamente para que lo re-envíe."""
+    """Edita un pedido.
+    - Vendedor dueño: DRAFT o SENT; si estaba SENT regresa a DRAFT para que lo re-envíe.
+    - Editor autorizado (can_edit_orders / superusuario): cualquier pedido no cancelado,
+      conserva el estado, exige motivo y re-envía el PDF a `resend_email` si viene.
+    Toda edición queda en la bitácora order_edits."""
     order = _load_order(db, order_id)
-    if order.vendor_id != me.id:
+    is_owner  = order.vendor_id == me.id
+    as_editor = not is_owner and (me.can_edit_orders or me.is_superuser)
+    if not (is_owner or as_editor):
         raise HTTPException(status_code=403, detail="Acceso denegado")
     if order.status == OrderStatus.CANCELLED:
         raise HTTPException(
             status_code=400,
             detail="No se puede editar un pedido cancelado",
         )
+    reason = (payload.reason or "").strip() or None
+    if as_editor and not reason:
+        raise HTTPException(status_code=400, detail="Indica el motivo de la edición")
 
-    if payload.store_id is not None:
+    changes: list[str] = []
+    if payload.store_id is not None and payload.store_id != order.store_id:
+        changes.append("Almacén de entrega cambiado")
         order.store_id = payload.store_id
-    if payload.collection_id is not None:
+    if payload.collection_id is not None and payload.collection_id != order.collection_id:
+        changes.append("Colección cambiada")
         order.collection_id = payload.collection_id
-    if payload.notes is not None:
+    if payload.notes is not None and payload.notes != (order.notes or ""):
+        changes.append("Notas del pedido modificadas")
         order.notes = payload.notes
 
     if payload.lines is not None:
-        # Reemplazar todas las líneas existentes
-        for line in list(order.lines):
-            db.delete(line)
-        db.flush()
+        old = _lines_map((ln.reference.code, ln.quantity, ln.unit_price) for ln in order.lines)
+        new_refs = []
         for ln in payload.lines:
             ref = db.get(Reference, ln.reference_id)
             if not ref:
@@ -168,20 +188,61 @@ def update_order(
                     status_code=400,
                     detail=f"Referencia {ln.reference_id} no existe",
                 )
+            new_refs.append((ref, ln))
+        changes += summarize_line_changes(
+            old, _lines_map((ref.code, ln.quantity, ln.unit_price) for ref, ln in new_refs)
+        )
+        # Reemplazar todas las líneas existentes
+        for line in list(order.lines):
+            db.delete(line)
+        db.flush()
+        for ref, ln in new_refs:
             db.add(OrderLine(
                 order_id=order.id,
-                reference_id=ln.reference_id,
+                reference_id=ref.id,
                 quantity=ln.quantity,
                 unit_price=ln.unit_price,
             ))
 
-    # Si estaba enviado y se edita, vuelve a borrador
-    if order.status == OrderStatus.SENT:
+    # Si el vendedor edita un pedido enviado, vuelve a borrador
+    if not as_editor and order.status == OrderStatus.SENT:
         order.status  = OrderStatus.DRAFT
         order.sent_at = None
 
+    edit = OrderEdit(
+        order_id=order.id, user_id=me.id, reason=reason,
+        summary="\n".join(changes) or "Sin cambios",
+    )
+    db.add(edit)
     db.commit()
-    return _load_order(db, order_id)
+
+    # Re-envío al cliente (correo indicado por el editor). Si falla, la edición ya quedó guardada.
+    resent_to = resend_error = None
+    if as_editor and payload.resend_email:
+        from routers.pdf import _build_pdf
+        from core.email import send_order_pdf_email
+
+        db.expire_all()
+        order = _load_order(db, order_id)
+        try:
+            send_order_pdf_email(
+                to_email=payload.resend_email,
+                client_name=order.store.client.business_name if order.store and order.store.client else "",
+                order_number=order.order_number,
+                pdf_bytes=_build_pdf(order, show_total=False),
+                changes=changes or ["Sin cambios en el contenido del pedido"],
+                reason=reason,
+            )
+            resent_to = order.client_email = payload.resend_email
+            edit.summary += f"\n(Re-enviado a {resent_to})"
+        except Exception as e:
+            resend_error = f"No se pudo re-enviar al cliente: {e}"
+            edit.summary += f"\n(Re-envío a {payload.resend_email} falló)"
+        db.commit()
+
+    out = OrderOut.model_validate(_load_order(db, order_id))
+    out.resent_to, out.resend_error = resent_to, resend_error
+    return out
 
 
 @router.post("/{order_id}/send", response_model=OrderOut)
@@ -261,6 +322,8 @@ def send_order_to_client(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al enviar el correo: {str(e)}")
 
+    order.client_email = payload.email
+    db.commit()
     return {"ok": True, "detail": f"Orden #{order.order_number} enviada a {payload.email}"}
 
 

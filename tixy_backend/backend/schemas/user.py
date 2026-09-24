@@ -20,6 +20,7 @@ class UserUpdate(BaseModel):
     contact_info: Optional[str] = None
     is_active:    Optional[bool] = None
     role:         Optional[UserRole] = None
+    can_edit_orders: Optional[bool] = None
 
 
 class UserOut(BaseModel):
@@ -33,6 +34,7 @@ class UserOut(BaseModel):
     contact_info: Optional[str]
     is_active:    bool
     is_superuser: bool
+    can_edit_orders: bool = False
 
 
 class PasswordReset(BaseModel):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 from models.order import OrderStatus
 from schemas.reference import ReferenceOut
 from schemas.user import UserOut
@@ -59,6 +59,18 @@ class OrderUpdate(BaseModel):
     collection_id: Optional[int]                   = None
     notes:         Optional[str]                   = None
     lines:         Optional[list[OrderLineCreate]] = None
+    reason:        Optional[str]                   = None  # obligatorio si edita un editor autorizado
+    resend_email:  Optional[EmailStr]              = None  # editor: a dónde re-enviar el PDF (vacío = no enviar)
+
+
+class OrderEditOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id:         int
+    created_at: datetime
+    summary:    str
+    reason:     Optional[str]
+    user:       UserOut
 
 
 class OrderOut(BaseModel):
@@ -77,6 +89,11 @@ class OrderOut(BaseModel):
     lines:        list[OrderLineOut] = []
     vendor:       UserOut
     store:        Optional[StoreWithClientOut] = None
+    client_email: Optional[str] = None
+    edits:        list[OrderEditOut] = []
+    # Solo en la respuesta de PATCH: resultado del re-envío automático al cliente
+    resent_to:    Optional[str] = None
+    resend_error: Optional[str] = None
 
 
 class OrderSummary(BaseModel):

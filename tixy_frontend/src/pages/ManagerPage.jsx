@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { listOrders, cancelOrder, deleteOrder, salesByReference, salesByVendor, salesByCollection, getCollections, getUsers, viewPdf, getOrder, getCategories, downloadExcelReport } from '../api/manager'
 import CityCombobox from '../components/CityCombobox'
 import fmt from '../utils/fmt'
@@ -151,6 +152,25 @@ function OrderDetailModal({ order, onClose }) {
             <div className="text-pink-dark font-bold">TOTAL: <span className="font-mono">${order.total?.toLocaleString('es-CO')}</span></div>
           </div>
         </div>
+
+        {/* Historial de ediciones */}
+        {order.edits?.length > 0 && (
+          <div className="px-4 sm:px-6 pb-4">
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-2">Historial de ediciones</div>
+            <ul className="flex flex-col gap-2">
+              {order.edits.map(ed => (
+                <li key={ed.id} className="rounded-lg border border-line p-3 text-xs">
+                  <div className="flex justify-between gap-2 text-ink-3">
+                    <span className="font-semibold text-ink">{ed.user?.full_name}</span>
+                    <span>{new Date(ed.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</span>
+                  </div>
+                  {ed.reason && <div className="mt-1 text-ink"><span className="font-semibold">Motivo:</span> {ed.reason}</div>}
+                  <div className="mt-1 text-ink-3 whitespace-pre-line">{ed.summary}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Acciones */}
         <div className="px-6 pb-5 flex justify-end">
@@ -431,6 +451,9 @@ function ComparativasSection({ data }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function ManagerPage() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const canEditOrders = user?.can_edit_orders || user?.is_superuser
   const [collections, setCollections] = useState([])
   const [vendors,     setVendors]     = useState([])
   const [orders,      setOrders]      = useState([])
@@ -552,6 +575,14 @@ export default function ManagerPage() {
   const [loadingView,  setLoadingView]  = useState(false)
 
   function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3000) }
+
+  // Mensaje al volver de editar un pedido (/pedido?edit=ID)
+  useEffect(() => {
+    const f = location.state?.flash
+    if (!f) return
+    setBanner(f); setTimeout(() => setBanner(null), 6000)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.state]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleRefresh() {
     loadData()
@@ -776,6 +807,13 @@ export default function ManagerPage() {
                               title="Cancelar pedido"
                               className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-colors">
                               × Cancelar
+                            </button>
+                          )}
+                          {canEditOrders && order.status !== 'CANCELLED' && (
+                            <button onClick={() => navigate(`/pedido?edit=${order.id}`)}
+                              title="Editar pedido (queda registrado)"
+                              className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors">
+                              ✏️ Editar
                             </button>
                           )}
                           {user?.is_superuser && (

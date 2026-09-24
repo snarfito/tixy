@@ -817,6 +817,7 @@ function ColsSection() {
 const EMPTY_USER = { full_name: '', email: '', role: 'vendor', phone: '', contact_info: '' }
 
 function UsersSection() {
+  const { user: currentUser } = useAuthStore()
   const [users,      setUsers]      = useState([])
   const [modal,      setModal]      = useState(null)   // null | 'create' | user-object
   const [inviteModal, setInviteModal] = useState(null)
@@ -840,7 +841,7 @@ function UsersSection() {
 
   function flash(type, msg) { setBanner({ type, msg }); setTimeout(() => setBanner(null), 3500) }
   function openCreate()       { setForm(EMPTY_USER); setModal('create') }
-  function openEdit(user)     { setForm({ full_name: user.full_name, email: user.email, role: user.role, phone: user.phone || '', contact_info: user.contact_info || '' }); setModal(user) }
+  function openEdit(user)     { setForm({ full_name: user.full_name, email: user.email, role: user.role, phone: user.phone || '', contact_info: user.contact_info || '', can_edit_orders: !!user.can_edit_orders }); setModal(user) }
   function closeModal()       { setModal(null) }
   function openInviteModal(u) { setInviteModal(u) }
   function closeInviteModal() { setInviteModal(null) }
@@ -860,6 +861,7 @@ function UsersSection() {
           phone:        form.phone.trim() || null,
           contact_info: form.contact_info.trim() || null,
         }
+        if (currentUser?.is_superuser) payload.can_edit_orders = form.can_edit_orders
         const updated = await updateUser(modal.id, payload)
         setUsers(prev => prev.map(u => u.id === updated.id ? updated : u))
         flash('ok', `✓ Usuario ${updated.full_name} actualizado.`)
@@ -972,6 +974,12 @@ function UsersSection() {
                       SUPER
                     </span>
                   )}
+                  {user.can_edit_orders && (
+                    <span className="ml-2 inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600"
+                          title="Puede editar pedidos">
+                      EDITA PEDIDOS
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-sm text-ink-2">{user.email}</td>
                 <td className="px-4 py-2.5 text-sm text-ink-3">{user.phone || '—'}</td>
@@ -1044,6 +1052,14 @@ function UsersSection() {
                 onChange={e => setForm(f => ({ ...f, contact_info: e.target.value }))}
                 placeholder="319 680 0557" />
             </Field>
+            {isEdit && currentUser?.is_superuser && !modal.is_superuser && (
+              <label className="flex items-center gap-2 mb-4 text-sm text-ink cursor-pointer">
+                <input type="checkbox" checked={form.can_edit_orders}
+                  onChange={e => setForm(f => ({ ...f, can_edit_orders: e.target.checked }))} />
+                Puede editar pedidos de cualquier vendedor
+                <span className="text-xs text-ink-3">(queda registrado y se re-envía al cliente)</span>
+              </label>
+            )}
             <div className="flex justify-end gap-2 mt-2">
               <button type="button" onClick={closeModal} className="btn-secondary text-xs">Cancelar</button>
               <button type="submit" disabled={saving} className="btn-primary text-xs disabled:opacity-50">

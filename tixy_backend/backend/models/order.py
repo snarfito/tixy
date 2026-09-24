@@ -27,6 +27,8 @@ class Order(Base):
     )
     sent_at:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     deleted_at:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Último correo al que se envió el PDF; si existe, una edición autorizada lo re-envía
+    client_email:  Mapped[Optional[str]] = mapped_column(String(180))
 
     vendor_id:     Mapped[int]         = mapped_column(ForeignKey("users.id"))
     store_id:      Mapped[int]         = mapped_column(ForeignKey("stores.id"))
@@ -36,6 +38,9 @@ class Order(Base):
     store:      Mapped["Store"]        = relationship(back_populates="orders")
     collection: Mapped["Collection"]   = relationship(back_populates="orders")        # type: ignore
     lines:      Mapped[list["OrderLine"]] = relationship(back_populates="order", cascade="all, delete-orphan")
+    edits:      Mapped[list["OrderEdit"]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", order_by="OrderEdit.id.desc()"
+    )
 
     @property
     def units(self) -> int:
@@ -65,3 +70,20 @@ class OrderLine(Base):
     @property
     def line_total(self) -> float:
         return self.unit_price * self.quantity
+
+
+class OrderEdit(Base):
+    """Bitácora de ediciones: quién editó, cuándo, qué cambió y por qué."""
+    __tablename__ = "order_edits"
+
+    id:         Mapped[int]           = mapped_column(Integer, primary_key=True, index=True)
+    order_id:   Mapped[int]           = mapped_column(ForeignKey("orders.id"), index=True)
+    user_id:    Mapped[int]           = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime]      = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    summary:    Mapped[str]           = mapped_column(Text)            # generado automáticamente
+    reason:     Mapped[Optional[str]] = mapped_column(Text)            # motivo escrito por el editor
+
+    order: Mapped["Order"] = relationship(back_populates="edits")
+    user:  Mapped["User"]  = relationship()                            # type: ignore

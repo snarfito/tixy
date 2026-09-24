@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { getReferences, getCollections, searchClients, createClient, createOrder, sendOrder, downloadPdfVendor, listOrders, getOrder, updateOrder, sendOrderToClient } from '../api/orders'
 import fmt from '../utils/fmt'
@@ -18,6 +19,10 @@ const CITIES = ['La Dorada','Bogotá','Medellín','Cali','Barranquilla','Pereira
 // ── Helpers de estado de pedido ──────────────────────────────────────────────
 export default function VendorPage() {
   const { user, token } = useAuthStore()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [editReason, setEditReason] = useState('')   // motivo obligatorio cuando edita un editor autorizado
+  const [resendEmail, setResendEmail] = useState('') // editor: correo al que se re-envía el PDF (vacío = no enviar)
   const date = today()
 
   const [collections,   setCollections]   = useState([])
@@ -58,7 +63,7 @@ export default function VendorPage() {
   const [activeTab,    setActiveTab]    = useState('form')   // 'form' | 'my_orders'
   const [myOrders,     setMyOrders]     = useState([])
   const [loadingOrders, setLoadingOrders] = useState(false)
-  const [editingOrder, setEditingOrder] = useState(null)    // { id, order_number } | null
+  const [editingOrder, setEditingOrder] = useState(null)    // { id, order_number, asEditor } | null
   const [sendingId,    setSendingId]    = useState(null)    // order_id en proceso de envío desde lista
 
   const refSearchRef  = useRef(null)
@@ -90,6 +95,8 @@ export default function VendorPage() {
     setCity('Medellín')
     setSelectedStore(null); setClientSearch(''); setRefSearch('')
     setEditingOrder(null)
+    setEditReason('')
+    setResendEmail('')
     setLastOrderId(null)
     setFieldErrors({})
   }
@@ -98,8 +105,10 @@ export default function VendorPage() {
   async function loadOrderForEdit(orderId) {
     try {
       const order = await getOrder(orderId)
+      // Editor autorizado editando pedido ajeno: puede editar aunque ya esté enviado
+      const asEditor = order.vendor_id !== user?.id && (user?.can_edit_orders || user?.is_superuser)
       // Bloquear edición si la orden ya fue enviada
-      if (order.status === 'SENT') {
+      if (order.status === 'SENT' && !asEditor) {
         flash('err', 'No se puede editar una orden que ya ha sido enviada.')
         return
       }
@@ -129,13 +138,20 @@ export default function VendorPage() {
         qty:   ln.quantity,
         price: ln.unit_price,
       })))
-      setEditingOrder({ id: order.id, order_number: order.order_number })
+      setEditingOrder({ id: order.id, order_number: order.order_number, asEditor })
+      if (asEditor) setResendEmail(order.client_email || order.store?.client?.email || '')
       setFieldErrors({})
       setActiveTab('form')
     } catch {
       flash('err', 'No se pudo cargar el pedido para editar.')
     }
   }
+
+  // ── abrir en modo edición desde Gerencia (/pedido?edit=ID) ─────────────
+  useEffect(() => {
+    const id = searchParams.get('edit')
+    if (id) loadOrderForEdit(Number(id))
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── cargar colecciones — solo cuando el token ya existe ──────────────────
   useEffect(() => {
@@ -145,7 +161,7 @@ export default function VendorPage() {
       .then(cols => {
         if (cols.length) {
           setCollections(cols)
-          setCollectionId(cols[0].id)
+          setCollectionId(prev => prev ?? cols[0].id)
         }
       })
       .catch(err => console.error('Error cargando colecciones:', err))
@@ -259,7 +275,22 @@ export default function VendorPage() {
         reference_id: l.refId, quantity: l.qty, unit_price: l.price,
       }))
 
-      if (editingOrder) {
+      if (editingOrder?.asEditor) {
+        if (resendEmail.trim() && !/^\S+@\S+\.\S+$/.test(resendEmail.trim())) {
+          flash('err', 'El correo de re-envío no es válido.'); return
+        }
+        const updated = await updateOrder(editingOrder.id, {
+          store_id: storeId, collection_id: collectionId, lines: linePayload, reason: editReason,
+          resend_email: resendEmail.trim() || null,
+        })
+        const msg = updated.resend_error
+          ? `Pedido #${updated.order_number} actualizado, pero ${updated.resend_error}`
+          : updated.resent_to
+            ? `Pedido #${updated.order_number} actualizado y re-enviado a ${updated.resent_to}.`
+            : `Pedido #${updated.order_number} actualizado. No se re-envió al cliente (sin correo).`
+        navigate('/gerencia', { state: { flash: { type: updated.resend_error ? 'err' : 'ok', msg } } })
+        return
+      } else if (editingOrder) {
         // Actualizar pedido existente
         await updateOrder(editingOrder.id, {
           store_id: storeId, collection_id: collectionId, lines: linePayload,
@@ -605,10 +636,14 @@ export default function VendorPage() {
           <div className="px-5 py-2.5 bg-blue-50 border-b border-blue-200 flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-blue-600 text-xs font-semibold">✏️ Estás editando el pedido #{editingOrder.order_number}</span>
-              <span className="text-blue-400 text-xs">Esto NO es un pedido nuevo — lo que envíes reemplazará este pedido.</span>
+              <span className="text-blue-400 text-xs">
+                {editingOrder.asEditor
+                  ? 'Edición autorizada: quedará registrada con tu nombre y el motivo.'
+                  : 'Esto NO es un pedido nuevo — lo que envíes reemplazará este pedido.'}
+              </span>
             </div>
             <button
-              onClick={() => { resetForm(); setActiveTab('my_orders') }}
+              onClick={() => { const back = editingOrder?.asEditor; resetForm(); back ? navigate('/gerencia') : setActiveTab('my_orders') }}
               className="text-xs font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900">
               Cancelar edición y empezar de cero
             </button>
@@ -921,11 +956,31 @@ export default function VendorPage() {
           ))}
         </div>
 
+        {/* Motivo de la edición (editor autorizado) */}
+        {editingOrder?.asEditor && (
+          <div className="px-4 sm:px-6 pt-4 border-t border-line">
+            <label htmlFor="edit-reason" className="block text-xs font-semibold text-ink mb-1">
+              Motivo de la edición <span className="text-red-500">*</span>
+            </label>
+            <textarea id="edit-reason" value={editReason} onChange={e => setEditReason(e.target.value)} rows={2}
+              placeholder="Ej: Ajuste de cantidades solicitado por el cliente"
+              className="w-full text-sm border border-line rounded-lg px-3 py-2 focus:outline-none focus:border-pink" />
+            <p className="text-[11px] text-ink-3 mt-1">El cliente verá este motivo en el correo.</p>
+            <label htmlFor="resend-email" className="block text-xs font-semibold text-ink mt-3 mb-1">
+              Re-enviar al cliente
+            </label>
+            <input id="resend-email" type="email" value={resendEmail} onChange={e => setResendEmail(e.target.value)}
+              placeholder="correo@cliente.com"
+              className="w-full text-sm border border-line rounded-lg px-3 py-2 focus:outline-none focus:border-pink" />
+            <p className="text-[11px] text-ink-3 mt-1">Se enviará el PDF actualizado a este correo. Déjalo vacío para no enviarlo.</p>
+          </div>
+        )}
+
         {/* Acciones */}
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-line bg-white">
           {/* Cancelar edición */}
           {editingOrder && (
-            <button onClick={() => { resetForm(); setActiveTab('my_orders') }}
+            <button onClick={() => { const back = editingOrder?.asEditor; resetForm(); back ? navigate('/gerencia') : setActiveTab('my_orders') }}
               className="btn-secondary w-full sm:w-auto justify-center text-ink-3">
               Cancelar edición
             </button>
@@ -934,15 +989,17 @@ export default function VendorPage() {
             <button onClick={handleClear} className="btn-secondary w-full sm:w-auto justify-center">Limpiar pedido</button>
           )}
           {/* Guardar borrador */}
-          <button onClick={handleSaveDraft} disabled={submitting}
+          <button onClick={handleSaveDraft} disabled={submitting || (editingOrder?.asEditor && !editReason.trim())}
             className="btn-secondary disabled:opacity-50 w-full sm:w-auto justify-center font-semibold">
             {submitting ? 'Guardando…' : editingOrder ? 'Guardar cambios' : 'Guardar borrador'}
           </button>
-          {/* Enviar pedido */}
+          {/* Enviar pedido — el editor autorizado solo guarda cambios */}
+          {!editingOrder?.asEditor && (
           <button onClick={handleSaveAndSend} disabled={submitting}
             className="btn-primary disabled:opacity-50 w-full sm:w-auto justify-center">
             {submitting ? 'Enviando…' : editingOrder ? 'Guardar y enviar →' : 'Enviar pedido →'}
           </button>
+          )}
         </div>
 
       </div>

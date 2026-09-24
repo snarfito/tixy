@@ -25,6 +25,8 @@ class User(Base):
     role:         Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.VENDOR)
     is_active:    Mapped[bool]     = mapped_column(Boolean, default=True)
     is_superuser: Mapped[bool]     = mapped_column(Boolean, default=False)
+    # Permiso para editar pedidos de cualquier vendedor (lo asigna el superusuario)
+    can_edit_orders: Mapped[bool]  = mapped_column(Boolean, default=False)
     created_at:   Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

@@ -185,6 +185,9 @@ def update_user(
             raise HTTPException(status_code=403, detail="El superusuario no puede ser desactivado")
         if payload.role and payload.role != user.role:
             raise HTTPException(status_code=403, detail="No se puede cambiar el rol del superusuario")
+    if (payload.can_edit_orders is not None and payload.can_edit_orders != user.can_edit_orders
+            and not current_user.is_superuser):
+        raise HTTPException(status_code=403, detail="Solo el superusuario asigna el permiso de editar pedidos")
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(user, field, value)
     db.commit()

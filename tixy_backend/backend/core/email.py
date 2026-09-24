@@ -2,6 +2,8 @@
 Servicio de envío de correos usando Resend.
 Documentación: https://resend.com/docs/send-with-python
 """
+from typing import Optional
+
 import resend
 from core.config import settings
 
@@ -117,12 +119,41 @@ def send_password_reset_email(to_email: str, to_name: str, reset_link: str) -> N
     })
 
 
-def send_order_pdf_email(to_email: str, client_name: str, order_number: str, pdf_bytes: bytes) -> None:
+def send_order_pdf_email(
+    to_email: str,
+    client_name: str,
+    order_number: str,
+    pdf_bytes: bytes,
+    changes: Optional[list[str]] = None,
+    reason: Optional[str] = None,
+) -> None:
     """
     Envía la orden de pedido en PDF al correo del cliente.
+    Si se pasan `changes`, es un re-envío tras una edición: incluye motivo y resumen de cambios.
     """
     import base64
+    from html import escape
     nombre = client_name.split()[0] if client_name else "Cliente"
+    is_update = changes is not None
+
+    if is_update:
+        intro = (f'Tu orden de pedido <strong style="color:#FAE0EE;">#{order_number}</strong> '
+                 f'de <strong style="color:#FAE0EE;">Tixy Glamour</strong> fue actualizada. '
+                 f'Adjunto encontrarás el PDF actualizado.')
+        items = "".join(f"<li>{escape(c)}</li>" for c in changes)
+        update_block = f"""
+                  <div style="margin:0 0 24px;padding:16px;background:#1A0D14;border-radius:8px;border:1px solid #5a1535;
+                              font-size:14px;color:#ffffffcc;line-height:1.6;">
+                    <p style="margin:0 0 4px;font-weight:600;color:#FAE0EE;">Motivo</p>
+                    <p style="margin:0 0 16px;white-space:pre-line;">{escape(reason or "")}</p>
+                    <p style="margin:0 0 4px;font-weight:600;color:#FAE0EE;">Cambios</p>
+                    <ul style="margin:0;padding-left:20px;">{items}</ul>
+                  </div>"""
+    else:
+        intro = (f'Adjunto encontrarás la orden de pedido <strong style="color:#FAE0EE;">#{order_number}</strong> '
+                 f'de <strong style="color:#FAE0EE;">Tixy Glamour</strong>. '
+                 f'Por favor revísala y contáctanos si tienes alguna pregunta.')
+        update_block = ""
 
     html_body = f"""
     <!DOCTYPE html>
@@ -160,10 +191,9 @@ def send_order_pdf_email(to_email: str, client_name: str, order_number: str, pdf
                     Hola, {nombre} 👋
                   </p>
                   <p style="margin:0 0 24px;font-size:14px;color:#ffffff99;line-height:1.6;">
-                    Adjunto encontrarás la orden de pedido <strong style="color:#FAE0EE;">#{order_number}</strong>
-                    de <strong style="color:#FAE0EE;">Tixy Glamour</strong>.
-                    Por favor revísala y contáctanos si tienes alguna pregunta.
+                    {intro}
                   </p>
+{update_block}
 
                   <div style="padding:16px;background:#1A0D14;border-radius:8px;border:1px solid #5a1535;">
                     <p style="margin:0;font-size:12px;color:#ffffff50;line-height:1.6;">
@@ -196,7 +226,7 @@ def send_order_pdf_email(to_email: str, client_name: str, order_number: str, pdf
     resend.Emails.send({
         "from": f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>",
         "to": [to_email],
-        "subject": f"Orden de Pedido #{order_number} — Tixy Glamour",
+        "subject": f"{'Pedido actualizado' if is_update else 'Orden de Pedido'} #{order_number} — Tixy Glamour",
         "html": html_body,
         "attachments": [{
             "filename": f"tixy-orden-{order_number}.pdf",
