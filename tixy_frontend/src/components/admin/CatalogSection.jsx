@@ -4,12 +4,14 @@ import {
   getCatalogImagesByCollection, uploadCatalogImage, updateCatalogImageReferences,
   replaceCatalogImage, deleteCatalogImage, clearCollectionCatalog,
 } from '../../api/catalog'
+import ReferenceCodesInput from './ReferenceCodesInput'
 
 export default function CatalogSection() {
   const [collections,  setCollections]  = useState([])
   const [collectionId, setCollectionId] = useState('')
-  const [refs,         setRefs]         = useState([])   // referencias de la coleccion, para resolver codigo -> id
+  const [refs,         setRefs]         = useState([])   // referencias de la coleccion, para el autocompletado
   const [images,       setImages]       = useState([])
+  const [pendingFiles, setPendingFiles] = useState([])   // [{ id, file, previewUrl, referenceIds }] — antes de subir
   const [uploading,    setUploading]    = useState(false)
   const [banner,       setBanner]       = useState(null)
   const [cacheBust,    setCacheBust]    = useState({})   // imageId -> contador, evita servir la foto vieja tras un reemplazo
@@ -36,50 +38,51 @@ export default function CatalogSection() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  function codesToIds(text) {
-    const codes = text.split(/[\s,]+/).map(c => c.trim()).filter(Boolean)
-    const ids = []
-    const unknown = []
-    for (const code of codes) {
-      const ref = refs.find(r => r.code.toLowerCase() === code.toLowerCase())
-      if (ref) ids.push(ref.id)
-      else unknown.push(code)
-    }
-    return { ids, unknown }
-  }
-
-  function idsToCodes(ids) {
-    return ids.map(id => refs.find(r => r.id === id)?.code).filter(Boolean).join(' ')
-  }
-
-  async function handleFiles(fileList) {
+  // ── selección de archivos → modal de asociación previa ──────────────────
+  function stageFiles(fileList) {
     const files = Array.from(fileList)
     if (!files.length) return
-    setUploading(true)
-    const CONCURRENCY = 3
-    for (let i = 0; i < files.length; i += CONCURRENCY) {
-      const batch = files.slice(i, i + CONCURRENCY)
-      await Promise.allSettled(
-        batch.map(file => uploadCatalogImage({ file, collectionId, referenceIds: [] }))
-      )
-    }
-    setUploading(false)
-    flash('ok', `✓ ${files.length} imagen(es) subida(s).`)
-    refresh()
+    setPendingFiles(files.map((file, idx) => ({
+      id: `${Date.now()}_${idx}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      referenceIds: [],
+    })))
   }
 
   function handleDrop(e) {
     e.preventDefault()
-    handleFiles(e.dataTransfer.files)
+    stageFiles(e.dataTransfer.files)
   }
 
-  async function handleAssociate(imageId, text) {
-    const { ids, unknown } = codesToIds(text)
-    if (unknown.length) {
-      flash('err', `Código(s) no encontrado(s) en esta colección: ${unknown.join(', ')}`)
-      return
+  function updatePendingRefs(id, referenceIds) {
+    setPendingFiles(prev => prev.map(pf => pf.id === id ? { ...pf, referenceIds } : pf))
+  }
+
+  function cancelUpload() {
+    pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl))
+    setPendingFiles([])
+  }
+
+  async function confirmUpload() {
+    const count = pendingFiles.length
+    setUploading(true)
+    const CONCURRENCY = 3
+    for (let i = 0; i < pendingFiles.length; i += CONCURRENCY) {
+      const batch = pendingFiles.slice(i, i + CONCURRENCY)
+      await Promise.allSettled(
+        batch.map(pf => uploadCatalogImage({ file: pf.file, collectionId, referenceIds: pf.referenceIds }))
+      )
     }
-    await updateCatalogImageReferences(imageId, ids)
+    pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl))
+    setPendingFiles([])
+    setUploading(false)
+    flash('ok', `✓ ${count} imagen(es) subida(s).`)
+    refresh()
+  }
+
+  async function handleAssociate(imageId, referenceIds) {
+    await updateCatalogImageReferences(imageId, referenceIds)
     flash('ok', '✓ Asociación actualizada.')
     refresh()
   }
@@ -134,9 +137,9 @@ export default function CatalogSection() {
         onDrop={handleDrop}
         className="block border-2 border-dashed border-line rounded-xl p-8 text-center text-sm text-ink-3 cursor-pointer hover:border-pink mb-6"
       >
-        {uploading ? 'Subiendo…' : 'Arrastra imágenes aquí, o haz clic para elegirlas'}
+        Arrastra imágenes aquí, o haz clic para elegirlas
         <input type="file" accept="image/*" multiple className="hidden"
-          onChange={e => handleFiles(e.target.files)} />
+          onChange={e => stageFiles(e.target.files)} />
       </label>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -144,11 +147,10 @@ export default function CatalogSection() {
           <div key={img.id} className="card overflow-hidden">
             <img src={withCacheBust(img.thumb_url, img.id)} alt="" className="w-full aspect-[2/3] object-cover" />
             <div className="p-2 space-y-1.5">
-              <input
-                defaultValue={idsToCodes(img.reference_ids)}
-                placeholder="códigos, ej. 110 111"
-                onBlur={e => handleAssociate(img.id, e.target.value)}
-                className="w-full border border-line rounded px-2 py-1 text-xs"
+              <ReferenceCodesInput
+                refs={refs}
+                value={img.reference_ids}
+                onChange={ids => handleAssociate(img.id, ids)}
               />
               <div className="flex gap-1.5">
                 <label className="btn-secondary text-[11px] px-2 py-1 flex-1 text-center cursor-pointer">
@@ -165,6 +167,41 @@ export default function CatalogSection() {
       </div>
       {images.length === 0 && (
         <p className="text-ink-3 text-sm text-center py-10">Esta colección todavía no tiene imágenes.</p>
+      )}
+
+      {/* Modal: asociar referencias antes de subir */}
+      {pendingFiles.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-line">
+              <h3 className="text-sm font-semibold text-ink">Asociar referencias ({pendingFiles.length})</h3>
+              <button onClick={cancelUpload} className="text-ink-3 hover:text-ink text-xl leading-none">×</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {pendingFiles.map(pf => (
+                <div key={pf.id} className="flex gap-3 items-start">
+                  <img src={pf.previewUrl} alt="" className="w-16 h-20 object-cover rounded border border-line flex-shrink-0" />
+                  <div className="flex-1">
+                    <ReferenceCodesInput
+                      refs={refs}
+                      value={pf.referenceIds}
+                      onChange={ids => updatePendingRefs(pf.id, ids)}
+                      placeholder="Código(s), opcional"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 px-5 py-3.5 border-t border-line">
+              <button onClick={cancelUpload} disabled={uploading} className="btn-secondary text-xs px-3 py-1.5 flex-1">
+                Cancelar
+              </button>
+              <button onClick={confirmUpload} disabled={uploading} className="btn-primary text-xs px-3 py-1.5 flex-1">
+                {uploading ? 'Subiendo…' : `Subir ${pendingFiles.length} imagen(es)`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
