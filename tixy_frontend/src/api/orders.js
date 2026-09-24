@@ -6,6 +6,11 @@ export const getReferences = (params) =>
 export const getCollections = () =>
   api.get('/collections/').then(r => r.data)
 
+// A diferencia de getCollections(), incluye colecciones inactivas — el
+// catálogo debe seguir mostrando colecciones antiguas aunque ya no acepten pedidos.
+export const getAllCollections = () =>
+  api.get('/collections/', { params: { active_only: false } }).then(r => r.data)
+
 export const searchClients = (search) =>
   api.get('/clients/', { params: { search } }).then(r => r.data)
 
