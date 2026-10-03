@@ -763,9 +763,10 @@ export default function ManagerPage() {
               <span className="text-sm font-semibold text-ink">Pedidos recibidos</span>
               <span className="text-xs text-ink-3 ml-1">({orders.length})</span>
             </div>
-            <div className="overflow-x-auto">
+            {/* Scroll propio para que el encabezado quede fijo (sticky) */}
+            <div className="overflow-auto max-h-[75vh]">
               <table className="w-full border-collapse">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-surface shadow-[0_1px_0_#e5e5e5]">
                   <tr className="border-b border-line bg-surface">
                     <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">#</th>
                     <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Fecha</th>
