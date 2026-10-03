@@ -149,7 +149,6 @@ function OrderDetailModal({ order, onClose }) {
           {/* Total */}
           <div className="flex justify-end mt-4 gap-6 text-sm border-t border-line pt-3">
             <div className="text-ink-3">Total cant.: <span className="font-semibold text-ink font-mono">{lines.reduce((s, ln) => s + ln.quantity, 0).toLocaleString('es-CO')}</span></div>
-            <div className="text-ink-3">Sub-total: <span className="font-semibold text-ink font-mono">${order.subtotal?.toLocaleString('es-CO')}</span></div>
             <div className="text-pink-dark font-bold">TOTAL: <span className="font-mono">${order.total?.toLocaleString('es-CO')}</span></div>
           </div>
         </div>

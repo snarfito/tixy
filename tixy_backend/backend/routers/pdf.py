@@ -420,14 +420,13 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
     if show_total:
         col_w = [2.2*cm, 6.8*cm, 2.9*cm, 1.4*cm, 2.2*cm, 2.2*cm]
         tt = Table([
-            ["","","","", "Sub-total:", f"${order.subtotal:,.0f}".replace(",",".")],
             ["","","","", "TOTAL:",     f"${order.total:,.0f}".replace(",",".")],
         ], colWidths=col_w)
         tt.setStyle(TableStyle([
             ("FONTNAME",      (0,0),(-1,-1), F_BODY),
             ("FONTSIZE",      (0,0),(-1,-1), 9),
-            ("FONTNAME",      (4,1),(5,1),   F_BOLD),
-            ("FONTSIZE",      (4,1),(5,1),   11),
+            ("FONTNAME",      (4,0),(5,0),   F_BOLD),
+            ("FONTSIZE",      (4,0),(5,0),   11),
             ("TEXTCOLOR",     (4,0),(4,-1),  PINK),
             ("TEXTCOLOR",     (5,0),(5,-1),  BLACK),
             ("ALIGN",         (4,0),(-1,-1), "RIGHT"),
@@ -436,7 +435,7 @@ def _build_pdf(order: Order, show_total: bool) -> bytes:
             ("LEFTPADDING",   (0,0),(-1,-1), 5),
             ("RIGHTPADDING",  (0,0),(-1,-1), 5),
             ("LINEABOVE",     (4,0),(5,0),   0.5, LINE),
-            ("LINEBELOW",     (4,1),(5,1),   1.2, PINK),
+            ("LINEBELOW",     (4,0),(5,0),   1.2, PINK),
         ]))
         story.append(tt)
         story.append(Spacer(1, 0.2 * cm))
