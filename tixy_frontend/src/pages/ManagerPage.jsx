@@ -148,6 +148,7 @@ function OrderDetailModal({ order, onClose }) {
 
           {/* Total */}
           <div className="flex justify-end mt-4 gap-6 text-sm border-t border-line pt-3">
+            <div className="text-ink-3">Total cant.: <span className="font-semibold text-ink font-mono">{lines.reduce((s, ln) => s + ln.quantity, 0).toLocaleString('es-CO')}</span></div>
             <div className="text-ink-3">Sub-total: <span className="font-semibold text-ink font-mono">${order.subtotal?.toLocaleString('es-CO')}</span></div>
             <div className="text-pink-dark font-bold">TOTAL: <span className="font-mono">${order.total?.toLocaleString('es-CO')}</span></div>
           </div>
@@ -771,6 +772,7 @@ export default function ManagerPage() {
                     <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Fecha</th>
                     <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Vendedor</th>
                     <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-3">Almacén</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-3">Cantidad</th>
                     <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-3">Total</th>
                     <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3">Estado</th>
                     <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-3 w-28">Acciones</th>
@@ -778,9 +780,9 @@ export default function ManagerPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={7} className="text-center py-10 text-ink-3 text-sm">Cargando…</td></tr>
+                    <tr><td colSpan={8} className="text-center py-10 text-ink-3 text-sm">Cargando…</td></tr>
                   ) : orders.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-10 text-ink-3 text-sm">No hay pedidos con los filtros seleccionados.</td></tr>
+                    <tr><td colSpan={8} className="text-center py-10 text-ink-3 text-sm">No hay pedidos con los filtros seleccionados.</td></tr>
                   ) : orders.map(order => (
                     <tr key={order.id} className="border-b border-line hover:bg-surface transition-colors cursor-pointer"
                       onClick={() => handleOpenView(order)}>
@@ -793,6 +795,7 @@ export default function ManagerPage() {
                           <div className="text-[11px] text-ink-3">{order.store.city}</div>
                         )}
                       </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs text-ink">{order.units?.toLocaleString('es-CO')}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-xs font-semibold text-ink">{fmt(order.total)}</td>
                       <td className="px-4 py-2.5 text-center">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_BADGE[order.status]}`}>
